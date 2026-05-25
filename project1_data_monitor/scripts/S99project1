@@ -1,0 +1,55 @@
+#!/bin/sh
+
+APP_DIR="/opt/project1"
+SERVER_IP="${SERVER_IP:-192.168.10.100}"
+SERVER_PORT="${SERVER_PORT:-9000}"
+LOG_PATH="${LOG_PATH:-/mnt/tf/project1_samples.csv}"
+INTERVAL_MS="${INTERVAL_MS:-1000}"
+PID_FILE="/var/run/p1_collector.pid"
+
+start() {
+	echo "starting project1"
+	"$APP_DIR/load_modules.sh" "$APP_DIR/modules" || exit 1
+
+	if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+		echo "p1_collector already running"
+		return 0
+	fi
+
+	mkdir -p "$(dirname "$LOG_PATH")"
+	"$APP_DIR/bin/p1_collector" \
+		-s "$SERVER_IP" \
+		-p "$SERVER_PORT" \
+		-i "$INTERVAL_MS" \
+		-l "$LOG_PATH" \
+		>> "$APP_DIR/project1.log" 2>&1 &
+	echo $! > "$PID_FILE"
+}
+
+stop() {
+	echo "stopping project1"
+	if [ -f "$PID_FILE" ]; then
+		kill "$(cat "$PID_FILE")" 2>/dev/null || true
+		rm -f "$PID_FILE"
+	fi
+	"$APP_DIR/unload_modules.sh" || true
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		echo "usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+

@@ -1,0 +1,22 @@
+# Large vendor kernel source and archive
+/linux-imx-4.1.15-2.1.0-e48931b1-v2.8/
+/linux-imx-4.1.15-2.1.0-e48931b1-v2.8.tar.bz2
+*.docx
+# Build outputs
+*.o
+*.ko
+*.mod
+*.mod.c
+*.symvers
+*.order
+*.cmd
+*.tmp
+*.dtb
+*.dtbo
+
+# Local runtime output
+*.log
+*.csv
+__pycache__/
+*.pyc
+
