@@ -31,7 +31,10 @@ private slots:
     void sendBeepCommand();
     void sendIntervalCommand();
     void sendThresholdCommand();
+    void sendFilterCommand();
     void sendModeCommand();
+    void sendSaveConfigCommand();
+    void sendLogQueryCommand();
     void sendShutdownCommand();
 
 private:
@@ -68,8 +71,9 @@ private:
     QSpinBox *intervalSpin_;
     QSpinBox *psThresholdSpin_;
     QSpinBox *alsThresholdSpin_;
+    QSpinBox *filterSpin_;
+    QSpinBox *logLinesSpin_;
     QComboBox *modeCombo_;
 };
 
 #endif
-

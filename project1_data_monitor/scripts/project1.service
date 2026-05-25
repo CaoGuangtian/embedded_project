@@ -6,11 +6,10 @@ After=network.target
 Type=simple
 EnvironmentFile=-/etc/project1/project1.env
 ExecStartPre=/opt/project1/load_modules.sh /opt/project1/modules
-ExecStart=/opt/project1/bin/p1_collector -s ${SERVER_IP} -p ${SERVER_PORT} -i ${INTERVAL_MS} -l ${LOG_PATH} --max-log-kb ${MAX_LOG_KB} --ps ${PS_THRESHOLD} --als ${ALS_THRESHOLD}
+ExecStart=/opt/project1/bin/p1_collector -s ${SERVER_IP} -p ${SERVER_PORT} -i ${INTERVAL_MS} -l ${LOG_PATH} --max-log-kb ${MAX_LOG_KB} --ps ${PS_THRESHOLD} --als ${ALS_THRESHOLD} --filter-alpha ${FILTER_ALPHA_PERCENT} --config /etc/project1/project1.env
 ExecStopPost=/opt/project1/unload_modules.sh
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-

@@ -62,16 +62,21 @@ def format_status(status):
     env = "env=ERR"
     if status.get("env_ok"):
         env = (
-            f"ir={status.get('ir')} als={status.get('als')} "
-            f"ps={status.get('ps')}"
+            f"ir={status.get('ir_filtered', status.get('ir'))} "
+            f"lux={status.get('als_lux', status.get('als'))} "
+            f"ps={status.get('ps_filtered', status.get('ps'))}"
         )
 
     imu = "imu=ERR"
     if status.get("imu_ok"):
         imu = (
-            f"acc=({status.get('accel_x')},{status.get('accel_y')},"
-            f"{status.get('accel_z')}) gyro=({status.get('gyro_x')},"
-            f"{status.get('gyro_y')},{status.get('gyro_z')})"
+            f"acc_g=({status.get('accel_x_g', status.get('accel_x'))},"
+            f"{status.get('accel_y_g', status.get('accel_y'))},"
+            f"{status.get('accel_z_g', status.get('accel_z'))}) "
+            f"temp_c={status.get('temp_c', status.get('temp'))} "
+            f"gyro_dps=({status.get('gyro_x_dps', status.get('gyro_x'))},"
+            f"{status.get('gyro_y_dps', status.get('gyro_y'))},"
+            f"{status.get('gyro_z_dps', status.get('gyro_z'))})"
         )
 
     return (
@@ -114,6 +119,8 @@ def handle_client(conn, addr, session):
                             f"{addr}: ack cmd={msg.get('cmd')} "
                             f"ok={msg.get('ok')} msg={msg.get('msg')}"
                         )
+                    elif msg_type == "log_line":
+                        print(f"{addr}: log[{msg.get('index')}]: {msg.get('text')}")
                     elif msg_type == "register":
                         print(
                             f"{addr}: register device={msg.get('device')} "
@@ -148,9 +155,12 @@ def print_help():
         "  led 0|1\n"
         "  beep 0|1\n"
         "  interval <ms>\n"
+        "  filter <alpha_percent>\n"
         "  threshold ps <value>\n"
         "  threshold als <value>\n"
         "  mode normal|quiet|alarm_only\n"
+        "  saveconfig\n"
+        "  log [lines]\n"
         "  shutdown\n"
         "  help\n"
         "  quit"
@@ -193,10 +203,16 @@ def interactive_loop(session):
                 obj.update({"cmd": "set_beep", "value": int(parts[1])})
             elif cmd == "interval" and len(parts) == 2:
                 obj.update({"cmd": "set_interval", "value": int(parts[1])})
+            elif cmd == "filter" and len(parts) == 2:
+                obj.update({"cmd": "set_filter", "alpha": int(parts[1])})
             elif cmd == "threshold" and len(parts) == 3 and parts[1] in ("ps", "als"):
                 obj.update({"cmd": "set_threshold", parts[1]: int(parts[2])})
             elif cmd == "mode" and len(parts) == 2:
                 obj.update({"cmd": "set_mode", "mode": parts[1]})
+            elif cmd == "saveconfig":
+                obj.update({"cmd": "save_config"})
+            elif cmd == "log":
+                obj.update({"cmd": "get_log", "lines": int(parts[1]) if len(parts) > 1 else 10})
             elif cmd == "shutdown":
                 obj.update({"cmd": "shutdown"})
             else:

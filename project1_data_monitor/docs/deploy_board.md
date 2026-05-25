@@ -82,6 +82,7 @@ INTERVAL_MS=1000
 MAX_LOG_KB=1024
 PS_THRESHOLD=1000
 ALS_THRESHOLD=60000
+FILTER_ALPHA_PERCENT=35
 ```
 
 Default config file:
@@ -92,3 +93,6 @@ Default config file:
 
 The collector writes CSV logs to `LOG_PATH`. When the file grows beyond
 `MAX_LOG_KB`, it is rotated to `<LOG_PATH>.1`.
+
+Runtime changes sent from the PC can be persisted with the `save_config`
+command. The collector writes them back to `/etc/project1/project1.env`.

@@ -48,7 +48,8 @@ The collector links with pthread:
 ```bash
 ./collector/p1_collector -s 192.168.10.100 -p 9000 \
   -i 1000 -l /mnt/tf/project1_samples.csv \
-  --max-log-kb 1024 --ps 1000 --als 60000
+  --max-log-kb 1024 --ps 1000 --als 60000 \
+  --filter-alpha 35 --config /etc/project1/project1.env
 ```
 
 ## Package release
@@ -80,7 +81,10 @@ beep 0|1
 interval <ms>
 threshold ps <value>
 threshold als <value>
+filter <alpha_percent>
 mode normal|quiet|alarm_only
+saveconfig
+log [lines]
 shutdown
 ```
 

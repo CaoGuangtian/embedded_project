@@ -75,13 +75,23 @@ void MainWindow::buildUi()
     alsThresholdSpin_ = new QSpinBox(cmdBox);
     alsThresholdSpin_->setRange(0, 65535);
     alsThresholdSpin_->setValue(60000);
+    filterSpin_ = new QSpinBox(cmdBox);
+    filterSpin_->setRange(0, 100);
+    filterSpin_->setSuffix(tr(" %"));
+    filterSpin_->setValue(35);
+    logLinesSpin_ = new QSpinBox(cmdBox);
+    logLinesSpin_->setRange(1, 20);
+    logLinesSpin_->setValue(10);
     modeCombo_ = new QComboBox(cmdBox);
     modeCombo_->addItem(tr("normal"), QStringLiteral("normal"));
     modeCombo_->addItem(tr("quiet"), QStringLiteral("quiet"));
     modeCombo_->addItem(tr("alarm_only"), QStringLiteral("alarm_only"));
     auto *intervalButton = new QPushButton(tr("Apply Interval"), cmdBox);
     auto *thresholdButton = new QPushButton(tr("Apply Threshold"), cmdBox);
+    auto *filterButton = new QPushButton(tr("Apply Filter"), cmdBox);
     auto *modeButton = new QPushButton(tr("Apply Mode"), cmdBox);
+    auto *saveConfigButton = new QPushButton(tr("Save Config"), cmdBox);
+    auto *logButton = new QPushButton(tr("Fetch Logs"), cmdBox);
     auto *shutdownButton = new QPushButton(tr("Shutdown Collector"), cmdBox);
     cmdLayout->addRow(ledOnButton_, ledOffButton_);
     cmdLayout->addRow(beepOnButton_, beepOffButton_);
@@ -90,8 +100,13 @@ void MainWindow::buildUi()
     cmdLayout->addRow(tr("PS Threshold"), psThresholdSpin_);
     cmdLayout->addRow(tr("ALS Threshold"), alsThresholdSpin_);
     cmdLayout->addRow(thresholdButton);
+    cmdLayout->addRow(tr("Filter Alpha"), filterSpin_);
+    cmdLayout->addRow(filterButton);
     cmdLayout->addRow(tr("Mode"), modeCombo_);
     cmdLayout->addRow(modeButton);
+    cmdLayout->addRow(tr("Log Lines"), logLinesSpin_);
+    cmdLayout->addRow(logButton);
+    cmdLayout->addRow(saveConfigButton);
     cmdLayout->addRow(shutdownButton);
     left->addWidget(cmdBox);
     left->addStretch(1);
@@ -110,9 +125,9 @@ void MainWindow::buildUi()
     metricTable_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     metricTable_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     const QStringList names = {
-        tr("IR"), tr("ALS"), tr("PS"),
-        tr("Accel X"), tr("Accel Y"), tr("Accel Z"),
-        tr("Temperature"), tr("Gyro X"), tr("Gyro Y"), tr("Gyro Z"),
+        tr("IR Filtered"), tr("ALS Lux"), tr("PS Filtered"),
+        tr("Accel X g"), tr("Accel Y g"), tr("Accel Z g"),
+        tr("Temperature C"), tr("Gyro X dps"), tr("Gyro Y dps"), tr("Gyro Z dps"),
         tr("LED"), tr("Beep")
     };
     for (int row = 0; row < names.size(); ++row) {
@@ -136,7 +151,10 @@ void MainWindow::buildUi()
     connect(beepOffButton_, &QPushButton::clicked, this, &MainWindow::sendBeepCommand);
     connect(intervalButton, &QPushButton::clicked, this, &MainWindow::sendIntervalCommand);
     connect(thresholdButton, &QPushButton::clicked, this, &MainWindow::sendThresholdCommand);
+    connect(filterButton, &QPushButton::clicked, this, &MainWindow::sendFilterCommand);
     connect(modeButton, &QPushButton::clicked, this, &MainWindow::sendModeCommand);
+    connect(saveConfigButton, &QPushButton::clicked, this, &MainWindow::sendSaveConfigCommand);
+    connect(logButton, &QPushButton::clicked, this, &MainWindow::sendLogQueryCommand);
     connect(shutdownButton, &QPushButton::clicked, this, &MainWindow::sendShutdownCommand);
 }
 
@@ -238,6 +256,10 @@ void MainWindow::handleLine(const QByteArray &line)
                       .arg(obj.value(QStringLiteral("cmd")).toString())
                       .arg(obj.value(QStringLiteral("ok")).toInt())
                       .arg(obj.value(QStringLiteral("msg")).toString()));
+    } else if (type == QLatin1String("log_line")) {
+        appendLog(tr("log[%1] %2")
+                      .arg(obj.value(QStringLiteral("index")).toInt())
+                      .arg(obj.value(QStringLiteral("text")).toString()));
     } else if (type == QLatin1String("register")) {
         appendLog(tr("registered %1 version %2")
                       .arg(obj.value(QStringLiteral("device")).toString())
@@ -254,16 +276,16 @@ void MainWindow::handleStatus(const QJsonObject &obj)
 
     const bool envOk = obj.value(QStringLiteral("env_ok")).toInt() != 0;
     const bool imuOk = obj.value(QStringLiteral("imu_ok")).toInt() != 0;
-    setMetric(0, QString::number(obj.value(QStringLiteral("ir")).toInt()), envOk);
-    setMetric(1, QString::number(obj.value(QStringLiteral("als")).toInt()), envOk);
-    setMetric(2, QString::number(obj.value(QStringLiteral("ps")).toInt()), envOk);
-    setMetric(3, QString::number(obj.value(QStringLiteral("accel_x")).toInt()), imuOk);
-    setMetric(4, QString::number(obj.value(QStringLiteral("accel_y")).toInt()), imuOk);
-    setMetric(5, QString::number(obj.value(QStringLiteral("accel_z")).toInt()), imuOk);
-    setMetric(6, QString::number(obj.value(QStringLiteral("temp")).toInt()), imuOk);
-    setMetric(7, QString::number(obj.value(QStringLiteral("gyro_x")).toInt()), imuOk);
-    setMetric(8, QString::number(obj.value(QStringLiteral("gyro_y")).toInt()), imuOk);
-    setMetric(9, QString::number(obj.value(QStringLiteral("gyro_z")).toInt()), imuOk);
+    setMetric(0, QString::number(obj.value(QStringLiteral("ir_filtered")).toDouble(), 'f', 1), envOk);
+    setMetric(1, QString::number(obj.value(QStringLiteral("als_lux")).toDouble(), 'f', 1), envOk);
+    setMetric(2, QString::number(obj.value(QStringLiteral("ps_filtered")).toDouble(), 'f', 1), envOk);
+    setMetric(3, QString::number(obj.value(QStringLiteral("accel_x_g")).toDouble(), 'f', 3), imuOk);
+    setMetric(4, QString::number(obj.value(QStringLiteral("accel_y_g")).toDouble(), 'f', 3), imuOk);
+    setMetric(5, QString::number(obj.value(QStringLiteral("accel_z_g")).toDouble(), 'f', 3), imuOk);
+    setMetric(6, QString::number(obj.value(QStringLiteral("temp_c")).toDouble(), 'f', 2), imuOk);
+    setMetric(7, QString::number(obj.value(QStringLiteral("gyro_x_dps")).toDouble(), 'f', 2), imuOk);
+    setMetric(8, QString::number(obj.value(QStringLiteral("gyro_y_dps")).toDouble(), 'f', 2), imuOk);
+    setMetric(9, QString::number(obj.value(QStringLiteral("gyro_z_dps")).toDouble(), 'f', 2), imuOk);
     setMetric(10, QString::number(obj.value(QStringLiteral("led")).toInt()));
     setMetric(11, QString::number(obj.value(QStringLiteral("beep")).toInt()));
 
@@ -284,8 +306,8 @@ QString MainWindow::statusSummary(const QJsonObject &obj) const
 {
     return tr("status mode=%1 ps=%2 als=%3 led=%4 beep=%5")
         .arg(obj.value(QStringLiteral("mode")).toString())
-        .arg(obj.value(QStringLiteral("ps")).toInt())
-        .arg(obj.value(QStringLiteral("als")).toInt())
+        .arg(obj.value(QStringLiteral("ps_filtered")).toDouble(), 0, 'f', 1)
+        .arg(obj.value(QStringLiteral("als_lux")).toDouble(), 0, 'f', 1)
         .arg(obj.value(QStringLiteral("led")).toInt())
         .arg(obj.value(QStringLiteral("beep")).toInt());
 }
@@ -333,11 +355,31 @@ void MainWindow::sendThresholdCommand()
                  {QStringLiteral("als"), alsThresholdSpin_->value()}});
 }
 
+void MainWindow::sendFilterCommand()
+{
+    sendCommand({{QStringLiteral("type"), QStringLiteral("command")},
+                 {QStringLiteral("cmd"), QStringLiteral("set_filter")},
+                 {QStringLiteral("alpha"), filterSpin_->value()}});
+}
+
 void MainWindow::sendModeCommand()
 {
     sendCommand({{QStringLiteral("type"), QStringLiteral("command")},
                  {QStringLiteral("cmd"), QStringLiteral("set_mode")},
                  {QStringLiteral("mode"), modeCombo_->currentData().toString()}});
+}
+
+void MainWindow::sendSaveConfigCommand()
+{
+    sendCommand({{QStringLiteral("type"), QStringLiteral("command")},
+                 {QStringLiteral("cmd"), QStringLiteral("save_config")}});
+}
+
+void MainWindow::sendLogQueryCommand()
+{
+    sendCommand({{QStringLiteral("type"), QStringLiteral("command")},
+                 {QStringLiteral("cmd"), QStringLiteral("get_log")},
+                 {QStringLiteral("lines"), logLinesSpin_->value()}});
 }
 
 void MainWindow::sendShutdownCommand()

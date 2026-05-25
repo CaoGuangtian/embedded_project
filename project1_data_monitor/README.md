@@ -28,6 +28,8 @@ The first bring-up target is:
 - ICM20608 SPI driver exposed as `/dev/p1_icm20608`
 - Board collector with periodic sampling, alarm policy, local CSV logging,
   key-based mode switching, TCP status upload, and remote commands
+- Engineering-unit conversion, simple exponential filtering, runtime config
+  persistence, and remote log tail query
 - PC management server with interactive commands
 - Qt/CMake desktop monitor with live status and command controls
 - BusyBox-style startup scripts

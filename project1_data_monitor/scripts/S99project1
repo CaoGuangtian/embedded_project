@@ -13,6 +13,7 @@ INTERVAL_MS="${INTERVAL_MS:-1000}"
 MAX_LOG_KB="${MAX_LOG_KB:-1024}"
 PS_THRESHOLD="${PS_THRESHOLD:-1000}"
 ALS_THRESHOLD="${ALS_THRESHOLD:-60000}"
+FILTER_ALPHA_PERCENT="${FILTER_ALPHA_PERCENT:-35}"
 
 start() {
 	echo "starting project1"
@@ -32,6 +33,8 @@ start() {
 		--max-log-kb "$MAX_LOG_KB" \
 		--ps "$PS_THRESHOLD" \
 		--als "$ALS_THRESHOLD" \
+		--filter-alpha "$FILTER_ALPHA_PERCENT" \
+		--config "$ENV_FILE" \
 		>> "$APP_DIR/project1.log" 2>&1 &
 	echo $! > "$PID_FILE"
 }

@@ -36,6 +36,8 @@ build and run `project1_monitor`.
 - Beep On / Beep Off
 - Apply Interval
 - Apply Threshold
+- Apply Filter
 - Apply Mode
+- Fetch Logs
+- Save Config
 - Shutdown Collector
-

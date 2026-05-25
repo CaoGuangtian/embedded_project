@@ -19,7 +19,7 @@
 #include "p1_protocol.h"
 
 #define P1_RX_BUF_SIZE 1024
-#define P1_LINE_SIZE 1024
+#define P1_LINE_SIZE 2048
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
@@ -32,6 +32,8 @@ struct p1_config {
 	int ps_threshold;
 	int als_threshold;
 	int max_log_kb;
+	int filter_alpha_percent;
+	char config_path[256];
 	char log_path[256];
 };
 
@@ -51,10 +53,29 @@ struct p1_sample_record {
 	int imu_ok;
 	struct p1_ap3216c_sample env;
 	struct p1_icm20608_sample imu;
+	double ir_filtered;
+	double als_lux;
+	double ps_filtered;
+	double accel_g[3];
+	double temp_c;
+	double gyro_dps[3];
+};
+
+struct p1_filter_state {
+	int initialized;
+	double ir;
+	double als;
+	double ps;
+	double accel[3];
+	double temp;
+	double gyro[3];
 };
 
 static struct p1_runtime g_rt;
+static struct p1_filter_state g_filter;
 static volatile sig_atomic_t g_signal_stop;
+
+static void load_config_file(struct p1_config *cfg);
 
 static long long now_ms(void)
 {
@@ -94,6 +115,7 @@ static void usage(const char *prog)
 	fprintf(stderr,
 		"usage: %s [-s server_ip] [-p port] [-i interval_ms] "
 		"[-l log_path] [--max-log-kb value] "
+		"[--config path] [--filter-alpha 0..100] "
 		"[--ps value] [--als value]\n",
 		prog);
 }
@@ -107,6 +129,9 @@ static void config_defaults(struct p1_config *cfg)
 	cfg->ps_threshold = P1_DEFAULT_PS_THRESHOLD;
 	cfg->als_threshold = P1_DEFAULT_ALS_THRESHOLD;
 	cfg->max_log_kb = P1_DEFAULT_MAX_LOG_KB;
+	cfg->filter_alpha_percent = P1_DEFAULT_FILTER_ALPHA_PERCENT;
+	snprintf(cfg->config_path, sizeof(cfg->config_path), "%s",
+		 P1_DEFAULT_CONFIG_PATH);
 	snprintf(cfg->log_path, sizeof(cfg->log_path), "%s",
 		 P1_DEFAULT_LOG_PATH);
 }
@@ -134,6 +159,15 @@ static int parse_args(int argc, char **argv, struct p1_config *cfg)
 	config_defaults(cfg);
 
 	for (i = 1; i < argc; i++) {
+		if (!strcmp(argv[i], "--config") && i + 1 < argc) {
+			snprintf(cfg->config_path, sizeof(cfg->config_path), "%s",
+				 argv[i + 1]);
+			break;
+		}
+	}
+	load_config_file(cfg);
+
+	for (i = 1; i < argc; i++) {
 		if (!strcmp(argv[i], "-s") && i + 1 < argc) {
 			snprintf(cfg->server_ip, sizeof(cfg->server_ip), "%s",
 				 argv[++i]);
@@ -148,6 +182,12 @@ static int parse_args(int argc, char **argv, struct p1_config *cfg)
 				 argv[++i]);
 		} else if (!strcmp(argv[i], "--max-log-kb") && i + 1 < argc) {
 			if (parse_int_arg(argv[++i], &cfg->max_log_kb))
+				return -1;
+		} else if (!strcmp(argv[i], "--config") && i + 1 < argc) {
+			snprintf(cfg->config_path, sizeof(cfg->config_path), "%s",
+				 argv[++i]);
+		} else if (!strcmp(argv[i], "--filter-alpha") && i + 1 < argc) {
+			if (parse_int_arg(argv[++i], &cfg->filter_alpha_percent))
 				return -1;
 		} else if (!strcmp(argv[i], "--ps") && i + 1 < argc) {
 			if (parse_int_arg(argv[++i], &cfg->ps_threshold))
@@ -166,6 +206,10 @@ static int parse_args(int argc, char **argv, struct p1_config *cfg)
 		cfg->interval_ms = 100;
 	if (cfg->max_log_kb < 1)
 		cfg->max_log_kb = 1;
+	if (cfg->filter_alpha_percent < 0)
+		cfg->filter_alpha_percent = 0;
+	if (cfg->filter_alpha_percent > 100)
+		cfg->filter_alpha_percent = 100;
 
 	return 0;
 }
@@ -187,6 +231,105 @@ static int ensure_parent_dir(const char *path)
 		return 0;
 
 	return -1;
+}
+
+static void trim_line(char *text)
+{
+	char *start = text;
+	char *end;
+
+	while (*start == ' ' || *start == '\t')
+		start++;
+	if (start != text)
+		memmove(text, start, strlen(start) + 1);
+
+	end = text + strlen(text);
+	while (end > text &&
+	       (end[-1] == '\n' || end[-1] == '\r' ||
+		end[-1] == ' ' || end[-1] == '\t')) {
+		end--;
+		*end = '\0';
+	}
+}
+
+static void config_set_value(struct p1_config *cfg, const char *key,
+			     const char *value)
+{
+	int parsed;
+
+	if (!strcmp(key, "SERVER_IP")) {
+		snprintf(cfg->server_ip, sizeof(cfg->server_ip), "%s", value);
+	} else if (!strcmp(key, "SERVER_PORT") && !parse_int_arg(value, &parsed)) {
+		cfg->server_port = parsed;
+	} else if (!strcmp(key, "INTERVAL_MS") && !parse_int_arg(value, &parsed)) {
+		cfg->interval_ms = parsed;
+	} else if (!strcmp(key, "LOG_PATH")) {
+		snprintf(cfg->log_path, sizeof(cfg->log_path), "%s", value);
+	} else if (!strcmp(key, "MAX_LOG_KB") && !parse_int_arg(value, &parsed)) {
+		cfg->max_log_kb = parsed;
+	} else if (!strcmp(key, "PS_THRESHOLD") && !parse_int_arg(value, &parsed)) {
+		cfg->ps_threshold = parsed;
+	} else if (!strcmp(key, "ALS_THRESHOLD") && !parse_int_arg(value, &parsed)) {
+		cfg->als_threshold = parsed;
+	} else if (!strcmp(key, "FILTER_ALPHA_PERCENT") &&
+		   !parse_int_arg(value, &parsed)) {
+		cfg->filter_alpha_percent = parsed;
+	}
+}
+
+static void load_config_file(struct p1_config *cfg)
+{
+	FILE *fp;
+	char line[512];
+
+	fp = fopen(cfg->config_path, "r");
+	if (!fp)
+		return;
+
+	while (fgets(line, sizeof(line), fp)) {
+		char *eq;
+		char *key;
+		char *value;
+
+		trim_line(line);
+		if (line[0] == '\0' || line[0] == '#')
+			continue;
+
+		eq = strchr(line, '=');
+		if (!eq)
+			continue;
+
+		*eq = '\0';
+		key = line;
+		value = eq + 1;
+		trim_line(key);
+		trim_line(value);
+		config_set_value(cfg, key, value);
+	}
+
+	fclose(fp);
+}
+
+static int save_config_file(const struct p1_config *cfg)
+{
+	FILE *fp;
+
+	ensure_parent_dir(cfg->config_path);
+
+	fp = fopen(cfg->config_path, "w");
+	if (!fp)
+		return -1;
+
+	fprintf(fp, "SERVER_IP=%s\n", cfg->server_ip);
+	fprintf(fp, "SERVER_PORT=%d\n", cfg->server_port);
+	fprintf(fp, "INTERVAL_MS=%d\n", cfg->interval_ms);
+	fprintf(fp, "LOG_PATH=%s\n", cfg->log_path);
+	fprintf(fp, "MAX_LOG_KB=%d\n", cfg->max_log_kb);
+	fprintf(fp, "PS_THRESHOLD=%d\n", cfg->ps_threshold);
+	fprintf(fp, "ALS_THRESHOLD=%d\n", cfg->als_threshold);
+	fprintf(fp, "FILTER_ALPHA_PERCENT=%d\n", cfg->filter_alpha_percent);
+	fclose(fp);
+	return 0;
 }
 
 static int read_full_device(const char *path, void *buf, size_t len)
@@ -268,6 +411,82 @@ static void apply_alarm_policy(const struct p1_sample_record *rec)
 	set_led(mode != P1_MODE_ALARM_ONLY && rec->env_ok && rec->imu_ok);
 }
 
+static double ema(double old_value, double new_value, int alpha_percent)
+{
+	double alpha = alpha_percent / 100.0;
+
+	if (alpha < 0.0)
+		alpha = 0.0;
+	if (alpha > 1.0)
+		alpha = 1.0;
+
+	return old_value * (1.0 - alpha) + new_value * alpha;
+}
+
+static void convert_and_filter_sample(struct p1_sample_record *rec)
+{
+	int alpha;
+	double ir;
+	double als_lux;
+	double ps;
+	double accel[3];
+	double temp_c;
+	double gyro[3];
+	int i;
+
+	pthread_mutex_lock(&g_rt.lock);
+	alpha = g_rt.cfg.filter_alpha_percent;
+	pthread_mutex_unlock(&g_rt.lock);
+
+	ir = rec->env.ir;
+	als_lux = rec->env.als * 0.35;
+	ps = rec->env.ps;
+
+	accel[0] = rec->imu.accel_x / 2048.0;
+	accel[1] = rec->imu.accel_y / 2048.0;
+	accel[2] = rec->imu.accel_z / 2048.0;
+	temp_c = rec->imu.temp / 326.8 + 25.0;
+	gyro[0] = rec->imu.gyro_x / 16.4;
+	gyro[1] = rec->imu.gyro_y / 16.4;
+	gyro[2] = rec->imu.gyro_z / 16.4;
+
+	if (!g_filter.initialized) {
+		g_filter.ir = ir;
+		g_filter.als = als_lux;
+		g_filter.ps = ps;
+		for (i = 0; i < 3; i++) {
+			g_filter.accel[i] = accel[i];
+			g_filter.gyro[i] = gyro[i];
+		}
+		g_filter.temp = temp_c;
+		g_filter.initialized = 1;
+	} else {
+		if (rec->env_ok) {
+			g_filter.ir = ema(g_filter.ir, ir, alpha);
+			g_filter.als = ema(g_filter.als, als_lux, alpha);
+			g_filter.ps = ema(g_filter.ps, ps, alpha);
+		}
+		if (rec->imu_ok) {
+			for (i = 0; i < 3; i++) {
+				g_filter.accel[i] = ema(g_filter.accel[i],
+							accel[i], alpha);
+				g_filter.gyro[i] = ema(g_filter.gyro[i],
+						       gyro[i], alpha);
+			}
+			g_filter.temp = ema(g_filter.temp, temp_c, alpha);
+		}
+	}
+
+	rec->ir_filtered = g_filter.ir;
+	rec->als_lux = g_filter.als;
+	rec->ps_filtered = g_filter.ps;
+	for (i = 0; i < 3; i++) {
+		rec->accel_g[i] = g_filter.accel[i];
+		rec->gyro_dps[i] = g_filter.gyro[i];
+	}
+	rec->temp_c = g_filter.temp;
+}
+
 static int ensure_log_header(const char *path)
 {
 	struct stat st;
@@ -284,7 +503,10 @@ static int ensure_log_header(const char *path)
 
 	fprintf(fp,
 		"timestamp,mode,env_ok,ir,als,ps,imu_ok,"
-		"accel_x,accel_y,accel_z,temp,gyro_x,gyro_y,gyro_z\n");
+		"accel_x,accel_y,accel_z,temp,gyro_x,gyro_y,gyro_z,"
+		"ir_filtered,als_lux,ps_filtered,"
+		"accel_x_g,accel_y_g,accel_z_g,temp_c,"
+		"gyro_x_dps,gyro_y_dps,gyro_z_dps\n");
 	fclose(fp);
 	return 0;
 }
@@ -332,12 +554,16 @@ static void append_log(const char *path, const struct p1_sample_record *rec)
 	pthread_mutex_unlock(&g_rt.lock);
 
 	fprintf(fp,
-		"%ld,%s,%d,%u,%u,%u,%d,%d,%d,%d,%d,%d,%d,%d\n",
+		"%ld,%s,%d,%u,%u,%u,%d,%d,%d,%d,%d,%d,%d,%d,"
+		"%.2f,%.2f,%.2f,%.4f,%.4f,%.4f,%.2f,%.2f,%.2f,%.2f\n",
 		(long)rec->ts, p1_mode_name(mode), rec->env_ok,
 		rec->env.ir, rec->env.als, rec->env.ps, rec->imu_ok,
 		rec->imu.accel_x, rec->imu.accel_y, rec->imu.accel_z,
 		rec->imu.temp, rec->imu.gyro_x, rec->imu.gyro_y,
-		rec->imu.gyro_z);
+		rec->imu.gyro_z, rec->ir_filtered, rec->als_lux,
+		rec->ps_filtered, rec->accel_g[0], rec->accel_g[1],
+		rec->accel_g[2], rec->temp_c, rec->gyro_dps[0],
+		rec->gyro_dps[1], rec->gyro_dps[2]);
 
 	fclose(fp);
 }
@@ -416,12 +642,14 @@ static void send_status_message(const struct p1_sample_record *rec)
 	int interval;
 	int led_on;
 	int beep_on;
+	int filter_alpha;
 
 	pthread_mutex_lock(&g_rt.lock);
 	mode = g_rt.mode;
 	interval = g_rt.cfg.interval_ms;
 	led_on = g_rt.led_on;
 	beep_on = g_rt.beep_on;
+	filter_alpha = g_rt.cfg.filter_alpha_percent;
 	pthread_mutex_unlock(&g_rt.lock);
 
 	snprintf(line, sizeof(line),
@@ -430,12 +658,22 @@ static void send_status_message(const struct p1_sample_record *rec)
 		 "\"env_ok\":%d,\"ir\":%u,\"als\":%u,\"ps\":%u,"
 		 "\"imu_ok\":%d,\"accel_x\":%d,\"accel_y\":%d,"
 		 "\"accel_z\":%d,\"temp\":%d,\"gyro_x\":%d,"
-		 "\"gyro_y\":%d,\"gyro_z\":%d}\n",
+		 "\"gyro_y\":%d,\"gyro_z\":%d,"
+		 "\"filter_alpha\":%d,\"ir_filtered\":%.2f,"
+		 "\"als_lux\":%.2f,\"ps_filtered\":%.2f,"
+		 "\"accel_x_g\":%.4f,\"accel_y_g\":%.4f,"
+		 "\"accel_z_g\":%.4f,\"temp_c\":%.2f,"
+		 "\"gyro_x_dps\":%.2f,\"gyro_y_dps\":%.2f,"
+		 "\"gyro_z_dps\":%.2f}\n",
 		 (long)rec->ts, p1_mode_name(mode), interval, led_on, beep_on,
 		 rec->env_ok, rec->env.ir, rec->env.als, rec->env.ps,
 		 rec->imu_ok, rec->imu.accel_x, rec->imu.accel_y,
 		 rec->imu.accel_z, rec->imu.temp, rec->imu.gyro_x,
-		 rec->imu.gyro_y, rec->imu.gyro_z);
+		 rec->imu.gyro_y, rec->imu.gyro_z, filter_alpha,
+		 rec->ir_filtered, rec->als_lux, rec->ps_filtered,
+		 rec->accel_g[0], rec->accel_g[1], rec->accel_g[2],
+		 rec->temp_c, rec->gyro_dps[0], rec->gyro_dps[1],
+		 rec->gyro_dps[2]);
 
 	send_line(line);
 }
@@ -449,6 +687,78 @@ static void send_ack(const char *cmd, int ok, const char *msg)
 		 "\"msg\":\"%s\"}\n",
 		 cmd ? cmd : "unknown", ok, msg ? msg : "");
 	send_line(line);
+}
+
+static void json_escape(const char *src, char *dst, size_t dst_len)
+{
+	size_t i = 0;
+
+	if (!dst_len)
+		return;
+
+	while (*src && i + 1 < dst_len) {
+		if ((*src == '"' || *src == '\\') && i + 2 < dst_len) {
+			dst[i++] = '\\';
+			dst[i++] = *src++;
+		} else if (*src == '\n' && i + 2 < dst_len) {
+			dst[i++] = '\\';
+			dst[i++] = 'n';
+			src++;
+		} else if (*src == '\r') {
+			src++;
+		} else {
+			dst[i++] = *src++;
+		}
+	}
+	dst[i] = '\0';
+}
+
+static void send_log_line(int index, const char *text)
+{
+	char escaped[700];
+	char line[P1_LINE_SIZE];
+
+	json_escape(text, escaped, sizeof(escaped));
+	snprintf(line, sizeof(line),
+		 "{\"type\":\"log_line\",\"index\":%d,\"text\":\"%s\"}\n",
+		 index, escaped);
+	send_line(line);
+}
+
+static void send_log_tail(int lines)
+{
+	struct p1_config cfg;
+	FILE *fp;
+	char ring[P1_LOG_QUERY_MAX_LINES][512];
+	int count = 0;
+	int start;
+	int i;
+	int index = 0;
+
+	if (lines < 1)
+		lines = 1;
+	if (lines > P1_LOG_QUERY_MAX_LINES)
+		lines = P1_LOG_QUERY_MAX_LINES;
+
+	pthread_mutex_lock(&g_rt.lock);
+	cfg = g_rt.cfg;
+	pthread_mutex_unlock(&g_rt.lock);
+
+	fp = fopen(cfg.log_path, "r");
+	if (!fp) {
+		send_ack("get_log", 0, "log open failed");
+		return;
+	}
+
+	while (fgets(ring[count % lines], sizeof(ring[0]), fp))
+		count++;
+	fclose(fp);
+
+	start = count > lines ? count - lines : 0;
+	for (i = start; i < count; i++) {
+		send_log_line(index++, ring[i % lines]);
+	}
+	send_ack("get_log", 1, "done");
 }
 
 static int runtime_should_stop(void)
@@ -606,6 +916,16 @@ static void handle_command(const char *line)
 		g_rt.cfg.interval_ms = value;
 		pthread_mutex_unlock(&g_rt.lock);
 		send_ack(cmd, 1, "ok");
+	} else if (!strcmp(cmd, "set_filter")) {
+		if (json_get_int(line, "alpha", &value) ||
+		    value < 0 || value > 100) {
+			send_ack(cmd, 0, "bad alpha");
+			return;
+		}
+		pthread_mutex_lock(&g_rt.lock);
+		g_rt.cfg.filter_alpha_percent = value;
+		pthread_mutex_unlock(&g_rt.lock);
+		send_ack(cmd, 1, "ok");
 	} else if (!strcmp(cmd, "set_threshold")) {
 		if (json_get_int(line, "ps", &value) == 0) {
 			pthread_mutex_lock(&g_rt.lock);
@@ -625,6 +945,34 @@ static void handle_command(const char *line)
 			return;
 		}
 		send_ack(cmd, 1, "ok");
+	} else if (!strcmp(cmd, "set_config_path")) {
+		char path[256];
+
+		if (json_get_string(line, "path", path, sizeof(path))) {
+			send_ack(cmd, 0, "missing path");
+			return;
+		}
+		pthread_mutex_lock(&g_rt.lock);
+		snprintf(g_rt.cfg.config_path, sizeof(g_rt.cfg.config_path),
+			 "%s", path);
+		pthread_mutex_unlock(&g_rt.lock);
+		send_ack(cmd, 1, "ok");
+	} else if (!strcmp(cmd, "save_config")) {
+		struct p1_config cfg;
+
+		pthread_mutex_lock(&g_rt.lock);
+		cfg = g_rt.cfg;
+		pthread_mutex_unlock(&g_rt.lock);
+
+		if (save_config_file(&cfg))
+			send_ack(cmd, 0, "save failed");
+		else
+			send_ack(cmd, 1, "saved");
+	} else if (!strcmp(cmd, "get_log")) {
+		int lines = 10;
+
+		json_get_int(line, "lines", &lines);
+		send_log_tail(lines);
 	} else if (!strcmp(cmd, "shutdown")) {
 		pthread_mutex_lock(&g_rt.lock);
 		g_rt.stop = 1;
@@ -760,6 +1108,7 @@ static void collect_once(struct p1_sample_record *rec)
 	rec->ts = time(NULL);
 	rec->env_ok = read_ap3216c(&rec->env) == 0;
 	rec->imu_ok = read_icm20608(&rec->imu) == 0;
+	convert_and_filter_sample(rec);
 }
 
 static void print_sample(const struct p1_sample_record *rec)
@@ -772,15 +1121,16 @@ static void print_sample(const struct p1_sample_record *rec)
 
 	printf("[%ld] mode=%s ", (long)rec->ts, p1_mode_name(mode));
 	if (rec->env_ok)
-		printf("env ir=%u als=%u ps=%u ", rec->env.ir,
-		       rec->env.als, rec->env.ps);
+		printf("env ir=%.1f als_lux=%.1f ps=%.1f ",
+		       rec->ir_filtered, rec->als_lux, rec->ps_filtered);
 	else
 		printf("env=ERR ");
 
 	if (rec->imu_ok)
-		printf("imu acc=(%d,%d,%d) gyro=(%d,%d,%d)",
-		       rec->imu.accel_x, rec->imu.accel_y, rec->imu.accel_z,
-		       rec->imu.gyro_x, rec->imu.gyro_y, rec->imu.gyro_z);
+		printf("imu acc_g=(%.3f,%.3f,%.3f) temp_c=%.2f gyro_dps=(%.2f,%.2f,%.2f)",
+		       rec->accel_g[0], rec->accel_g[1], rec->accel_g[2],
+		       rec->temp_c, rec->gyro_dps[0], rec->gyro_dps[1],
+		       rec->gyro_dps[2]);
 	else
 		printf("imu=ERR");
 
