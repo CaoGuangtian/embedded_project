@@ -47,8 +47,20 @@ The collector links with pthread:
 
 ```bash
 ./collector/p1_collector -s 192.168.10.100 -p 9000 \
-  -i 1000 -l /mnt/tf/project1_samples.csv
+  -i 1000 -l /mnt/tf/project1_samples.csv \
+  --max-log-kb 1024 --ps 1000 --als 60000
 ```
+
+## Package release
+
+After modules and userspace binaries are built:
+
+```bash
+cd project1_data_monitor
+./scripts/package_release.sh
+```
+
+This stages a release under `release/project1/`.
 
 ## PC server
 

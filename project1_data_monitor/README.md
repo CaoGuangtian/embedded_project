@@ -31,6 +31,7 @@ The first bring-up target is:
 - PC management server with interactive commands
 - Qt/CMake desktop monitor with live status and command controls
 - BusyBox-style startup scripts
+- systemd service, runtime env file, release packaging and board install script
 
 ## Recommended Development Order
 
@@ -41,3 +42,4 @@ The first bring-up target is:
 5. Optionally run `pc_qt/project1_monitor` as the GUI monitor.
 6. Run `userspace/collector/p1_collector` on the board.
 7. Add the init script once manual testing works.
+8. Package a release with `scripts/package_release.sh` for repeatable install.

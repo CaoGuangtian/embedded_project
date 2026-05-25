@@ -31,6 +31,7 @@ struct p1_config {
 	int interval_ms;
 	int ps_threshold;
 	int als_threshold;
+	int max_log_kb;
 	char log_path[256];
 };
 
@@ -92,7 +93,8 @@ static void usage(const char *prog)
 {
 	fprintf(stderr,
 		"usage: %s [-s server_ip] [-p port] [-i interval_ms] "
-		"[-l log_path] [--ps value] [--als value]\n",
+		"[-l log_path] [--max-log-kb value] "
+		"[--ps value] [--als value]\n",
 		prog);
 }
 
@@ -104,6 +106,7 @@ static void config_defaults(struct p1_config *cfg)
 	cfg->interval_ms = P1_DEFAULT_INTERVAL_MS;
 	cfg->ps_threshold = P1_DEFAULT_PS_THRESHOLD;
 	cfg->als_threshold = P1_DEFAULT_ALS_THRESHOLD;
+	cfg->max_log_kb = P1_DEFAULT_MAX_LOG_KB;
 	snprintf(cfg->log_path, sizeof(cfg->log_path), "%s",
 		 P1_DEFAULT_LOG_PATH);
 }
@@ -143,6 +146,9 @@ static int parse_args(int argc, char **argv, struct p1_config *cfg)
 		} else if (!strcmp(argv[i], "-l") && i + 1 < argc) {
 			snprintf(cfg->log_path, sizeof(cfg->log_path), "%s",
 				 argv[++i]);
+		} else if (!strcmp(argv[i], "--max-log-kb") && i + 1 < argc) {
+			if (parse_int_arg(argv[++i], &cfg->max_log_kb))
+				return -1;
 		} else if (!strcmp(argv[i], "--ps") && i + 1 < argc) {
 			if (parse_int_arg(argv[++i], &cfg->ps_threshold))
 				return -1;
@@ -158,8 +164,29 @@ static int parse_args(int argc, char **argv, struct p1_config *cfg)
 		return -1;
 	if (cfg->interval_ms < 100)
 		cfg->interval_ms = 100;
+	if (cfg->max_log_kb < 1)
+		cfg->max_log_kb = 1;
 
 	return 0;
+}
+
+static int ensure_parent_dir(const char *path)
+{
+	char tmp[256];
+	char *slash;
+
+	snprintf(tmp, sizeof(tmp), "%s", path);
+	slash = strrchr(tmp, '/');
+	if (!slash)
+		return 0;
+	if (slash == tmp)
+		return 0;
+
+	*slash = '\0';
+	if (mkdir(tmp, 0755) == 0 || errno == EEXIST)
+		return 0;
+
+	return -1;
 }
 
 static int read_full_device(const char *path, void *buf, size_t len)
@@ -246,6 +273,8 @@ static int ensure_log_header(const char *path)
 	struct stat st;
 	FILE *fp;
 
+	ensure_parent_dir(path);
+
 	if (stat(path, &st) == 0 && st.st_size > 0)
 		return 0;
 
@@ -260,11 +289,37 @@ static int ensure_log_header(const char *path)
 	return 0;
 }
 
+static void rotate_log_if_needed(const char *path, int max_log_kb)
+{
+	struct stat st;
+	char rotated[300];
+	long max_bytes;
+
+	if (max_log_kb <= 0)
+		return;
+	if (stat(path, &st) != 0)
+		return;
+
+	max_bytes = (long)max_log_kb * 1024L;
+	if (st.st_size < max_bytes)
+		return;
+
+	snprintf(rotated, sizeof(rotated), "%s.1", path);
+	unlink(rotated);
+	rename(path, rotated);
+}
+
 static void append_log(const char *path, const struct p1_sample_record *rec)
 {
 	FILE *fp;
 	enum p1_work_mode mode;
+	int max_log_kb;
 
+	pthread_mutex_lock(&g_rt.lock);
+	max_log_kb = g_rt.cfg.max_log_kb;
+	pthread_mutex_unlock(&g_rt.lock);
+
+	rotate_log_if_needed(path, max_log_kb);
 	if (ensure_log_header(path))
 		return;
 

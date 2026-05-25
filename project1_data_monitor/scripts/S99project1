@@ -1,11 +1,18 @@
 #!/bin/sh
 
 APP_DIR="/opt/project1"
+ENV_FILE="${ENV_FILE:-/etc/project1/project1.env}"
+PID_FILE="/var/run/p1_collector.pid"
+
+[ -f "$ENV_FILE" ] && . "$ENV_FILE"
+
 SERVER_IP="${SERVER_IP:-192.168.10.100}"
 SERVER_PORT="${SERVER_PORT:-9000}"
 LOG_PATH="${LOG_PATH:-/mnt/tf/project1_samples.csv}"
 INTERVAL_MS="${INTERVAL_MS:-1000}"
-PID_FILE="/var/run/p1_collector.pid"
+MAX_LOG_KB="${MAX_LOG_KB:-1024}"
+PS_THRESHOLD="${PS_THRESHOLD:-1000}"
+ALS_THRESHOLD="${ALS_THRESHOLD:-60000}"
 
 start() {
 	echo "starting project1"
@@ -22,6 +29,9 @@ start() {
 		-p "$SERVER_PORT" \
 		-i "$INTERVAL_MS" \
 		-l "$LOG_PATH" \
+		--max-log-kb "$MAX_LOG_KB" \
+		--ps "$PS_THRESHOLD" \
+		--als "$ALS_THRESHOLD" \
 		>> "$APP_DIR/project1.log" 2>&1 &
 	echo $! > "$PID_FILE"
 }
@@ -52,4 +62,3 @@ case "$1" in
 		exit 1
 		;;
 esac
-
