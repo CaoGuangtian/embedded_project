@@ -52,7 +52,7 @@ The collector links with pthread:
 
 ## PC server
 
-Run this on the PC:
+Run the Python management server on the PC:
 
 ```bash
 cd project1_data_monitor/pc
@@ -71,3 +71,5 @@ threshold als <value>
 mode normal|quiet|alarm_only
 shutdown
 ```
+
+For a GUI monitor, see `docs/build_qt.md`.

@@ -13,10 +13,17 @@
 *.tmp
 *.dtb
 *.dtbo
+build/
+build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.user
+*.autosave
 
 # Local runtime output
 *.log
 *.csv
 __pycache__/
 *.pyc
-

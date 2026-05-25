@@ -29,6 +29,7 @@ The first bring-up target is:
 - Board collector with periodic sampling, alarm policy, local CSV logging,
   key-based mode switching, TCP status upload, and remote commands
 - PC management server with interactive commands
+- Qt/CMake desktop monitor with live status and command controls
 - BusyBox-style startup scripts
 
 ## Recommended Development Order
@@ -37,5 +38,6 @@ The first bring-up target is:
 2. Build and load kernel modules.
 3. Test each `/dev/p1_*` node with the small tools.
 4. Run `pc/manage_server.py` on the PC.
-5. Run `userspace/collector/p1_collector` on the board.
-6. Add the init script once manual testing works.
+5. Optionally run `pc_qt/project1_monitor` as the GUI monitor.
+6. Run `userspace/collector/p1_collector` on the board.
+7. Add the init script once manual testing works.
