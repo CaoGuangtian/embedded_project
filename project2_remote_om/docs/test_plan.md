@@ -1,0 +1,42 @@
+# Test Plan
+
+Planned test groups:
+
+- TCP connection and registration
+- Heartbeat and reconnect
+- Status reporting
+- Remote command ACK
+- Log query
+- Service management
+- OTA success and rollback
+- Low-power mode switching
+- Suspend/resume and wakeup recovery
+
+## Stage 1 Test
+
+1. Start `server/manage_server.py` on the PC.
+2. Start `board/device_agent/device_agent` on the board.
+3. Confirm the PC prints a `register` message.
+4. Confirm the board prints an ACK reply.
+5. Confirm the PC keeps receiving `heartbeat` messages.
+6. Confirm the PC keeps receiving `status_report` messages.
+7. Stop the PC server, then start it again and confirm reconnect.
+
+Expected board output:
+
+```text
+device_agent starting: id=imx6ull-001 server=192.168.10.100:9000 fw=1.0.0
+connected to 192.168.10.100:9000
+send register: {"type":"register",...}
+register ack result=ok msg=ok
+send heartbeat: {"type":"heartbeat",...}
+heartbeat ack result=ok msg=ok
+send status_report: {"type":"status_report",...}
+status_report ack result=ok msg=ok
+```
+
+Expected PC status summary:
+
+```text
+status device=imx6ull-001 uptime=3600s mem=120000/256000KB rootfs=45% eth0=up fw=1.0.0 seq=3
+```
