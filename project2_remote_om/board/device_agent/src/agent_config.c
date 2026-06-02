@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 static void trim_line(char *text)
 {
@@ -38,6 +39,23 @@ static int parse_int(const char *text, int *out)
 
 	*out = (int)value;
 	return 0;
+}
+
+static int ensure_parent_dir(const char *path)
+{
+	char tmp[P2_CONFIG_PATH_MAX];
+	char *slash;
+
+	snprintf(tmp, sizeof(tmp), "%s", path);
+	slash = strrchr(tmp, '/');
+	if (!slash || slash == tmp)
+		return 0;
+
+	*slash = '\0';
+	if (mkdir(tmp, 0755) == 0 || errno == EEXIST)
+		return 0;
+
+	return -1;
 }
 
 void agent_config_defaults(struct agent_config *cfg)
@@ -122,6 +140,72 @@ int agent_config_load(struct agent_config *cfg, const char *path)
 
 	fclose(fp);
 	return 0;
+}
+
+int agent_config_save(const struct agent_config *cfg)
+{
+	FILE *fp;
+
+	ensure_parent_dir(cfg->config_path);
+	fp = fopen(cfg->config_path, "w");
+	if (!fp)
+		return -1;
+
+	fprintf(fp, "# Project2 device_agent config\n\n");
+	fprintf(fp, "device_id=%s\n", cfg->device_id);
+	fprintf(fp, "server_ip=%s\n", cfg->server_ip);
+	fprintf(fp, "server_port=%d\n", cfg->server_port);
+	fprintf(fp, "fw_version=%s\n", cfg->fw_version);
+	fprintf(fp, "heartbeat_interval=%d\n", cfg->heartbeat_interval);
+	fprintf(fp, "status_interval=%d\n", cfg->status_interval);
+	fprintf(fp, "reconnect_interval=%d\n", cfg->reconnect_interval);
+	fprintf(fp, "net_ifname=%s\n", cfg->net_ifname);
+	fprintf(fp, "log_path=%s\n", cfg->log_path);
+	fprintf(fp, "max_log_kb=%d\n", cfg->max_log_kb);
+	fclose(fp);
+	return 0;
+}
+
+int agent_config_update_value(struct agent_config *cfg, const char *key,
+			      const char *value, char *msg, int msg_len)
+{
+	int parsed;
+
+	if (!strcmp(key, "heartbeat_interval")) {
+		if (parse_int(value, &parsed) || parsed < 1)
+			goto bad_value;
+		cfg->heartbeat_interval = parsed;
+	} else if (!strcmp(key, "status_interval")) {
+		if (parse_int(value, &parsed) || parsed < 1)
+			goto bad_value;
+		cfg->status_interval = parsed;
+	} else if (!strcmp(key, "reconnect_interval")) {
+		if (parse_int(value, &parsed) || parsed < 1)
+			goto bad_value;
+		cfg->reconnect_interval = parsed;
+	} else if (!strcmp(key, "net_ifname")) {
+		if (!value[0])
+			goto bad_value;
+		snprintf(cfg->net_ifname, sizeof(cfg->net_ifname), "%s", value);
+	} else if (!strcmp(key, "log_path")) {
+		if (!value[0])
+			goto bad_value;
+		snprintf(cfg->log_path, sizeof(cfg->log_path), "%s", value);
+	} else if (!strcmp(key, "max_log_kb")) {
+		if (parse_int(value, &parsed) || parsed < 1)
+			goto bad_value;
+		cfg->max_log_kb = parsed;
+	} else {
+		snprintf(msg, (size_t)msg_len, "config key not allowed");
+		return -1;
+	}
+
+	snprintf(msg, (size_t)msg_len, "%s updated", key);
+	return 0;
+
+bad_value:
+	snprintf(msg, (size_t)msg_len, "bad config value");
+	return -1;
 }
 
 static void usage(const char *prog)

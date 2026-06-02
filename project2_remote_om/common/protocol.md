@@ -149,6 +149,9 @@ Supported first-stage commands:
 - `set_interval`: update runtime intervals
 - `get_log`: send recent device-agent log lines
 - `service_ctrl`: manage whitelisted board-side services
+- `get_config`: send current runtime configuration
+- `update_config`: update whitelisted runtime configuration
+- `save_config`: persist current configuration to file
 - `shutdown`: stop `device_agent`
 
 Example `set_interval`:
@@ -235,4 +238,69 @@ Whitelisted services:
 
 The board rejects services and actions outside these lists.
 
-Later stages will add config persistence, OTA, and power mode commands.
+Example `get_config`:
+
+```json
+{
+  "type": "command",
+  "device_id": "imx6ull-001",
+  "seq": 1005,
+  "timestamp": 1710000050,
+  "payload": {
+    "cmd": "get_config",
+    "args": {}
+  }
+}
+```
+
+Board replies with `config_report`, followed by one command ACK:
+
+```json
+{
+  "type": "config_report",
+  "device_id": "imx6ull-001",
+  "seq": 22,
+  "timestamp": 1710000051,
+  "payload": {
+    "heartbeat_interval": 5,
+    "status_interval": 10,
+    "reconnect_interval": 3,
+    "net_ifname": "eth0",
+    "log_path": "/var/log/device_agent/device_agent.log",
+    "max_log_kb": 1024,
+    "config_path": "/etc/device_agent/device_agent.conf"
+  }
+}
+```
+
+Example `update_config`:
+
+```json
+{
+  "type": "command",
+  "device_id": "imx6ull-001",
+  "seq": 1006,
+  "timestamp": 1710000060,
+  "payload": {
+    "cmd": "update_config",
+    "args": {
+      "key": "heartbeat_interval",
+      "value": "3"
+    }
+  }
+}
+```
+
+Allowed remote config keys:
+
+- `heartbeat_interval`
+- `status_interval`
+- `reconnect_interval`
+- `net_ifname`
+- `log_path`
+- `max_log_kb`
+
+The board rejects sensitive keys such as `server_ip`, `server_port`,
+`device_id`, `fw_version`, and `config_path`.
+
+Later stages will add OTA and power mode commands.

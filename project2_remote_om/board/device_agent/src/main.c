@@ -126,6 +126,25 @@ static int send_log_tail(int fd, const struct agent_config *cfg,
 	return 0;
 }
 
+static int send_config_report(int fd, const struct agent_config *cfg,
+			      struct protocol_context *proto)
+{
+	char line[P2_LINE_MAX];
+
+	if (protocol_build_config_report(proto, cfg, line, sizeof(line))) {
+		agent_log_error("build config_report message failed");
+		return -1;
+	}
+
+	if (net_client_send_all(fd, line, strlen(line))) {
+		agent_log_error("send config_report failed: %s", strerror(errno));
+		return -1;
+	}
+
+	agent_log_info("sent config_report");
+	return 0;
+}
+
 static int send_command_ack(int fd, const struct agent_config *cfg,
 			    const struct command_result *result)
 {
@@ -162,6 +181,13 @@ static int handle_server_line(int fd, struct agent_config *cfg,
 		result.ack_ok = 0;
 		snprintf(result.ack_msg, sizeof(result.ack_msg),
 			 "log failed");
+	}
+
+	if (result.action == CMD_ACTION_SEND_CONFIG &&
+	    send_config_report(fd, cfg, proto)) {
+		result.ack_ok = 0;
+		snprintf(result.ack_msg, sizeof(result.ack_msg),
+			 "config failed");
 	}
 
 	if (send_command_ack(fd, cfg, &result))

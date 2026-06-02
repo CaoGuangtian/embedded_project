@@ -147,6 +147,43 @@ int protocol_build_log_line(struct protocol_context *ctx,
 	return 0;
 }
 
+int protocol_build_config_report(struct protocol_context *ctx,
+				 const struct agent_config *cfg,
+				 char *buf, size_t len)
+{
+	char device_id[128];
+	char net_ifname[64];
+	char log_path[300];
+	char config_path[300];
+	int written;
+
+	json_escape(cfg->device_id, device_id, sizeof(device_id));
+	json_escape(cfg->net_ifname, net_ifname, sizeof(net_ifname));
+	json_escape(cfg->log_path, log_path, sizeof(log_path));
+	json_escape(cfg->config_path, config_path, sizeof(config_path));
+
+	ctx->seq++;
+	written = snprintf(buf, len,
+			   "{\"type\":\"config_report\",\"device_id\":\"%s\","
+			   "\"seq\":%u,\"timestamp\":%ld,"
+			   "\"payload\":{\"heartbeat_interval\":%d,"
+			   "\"status_interval\":%d,"
+			   "\"reconnect_interval\":%d,"
+			   "\"net_ifname\":\"%s\","
+			   "\"log_path\":\"%s\","
+			   "\"max_log_kb\":%d,"
+			   "\"config_path\":\"%s\"}}\n",
+			   device_id, ctx->seq, (long)time(NULL),
+			   cfg->heartbeat_interval, cfg->status_interval,
+			   cfg->reconnect_interval, net_ifname, log_path,
+			   cfg->max_log_kb, config_path);
+
+	if (written < 0 || (size_t)written >= len)
+		return -1;
+
+	return 0;
+}
+
 static const char *json_find_value(const char *line, const char *key)
 {
 	char pattern[64];

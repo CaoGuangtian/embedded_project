@@ -138,6 +138,17 @@ def describe_message(msg):
         text = payload.get("text", "")
         return f"log[{index}]: {text}"
 
+    if msg_type == "config_report":
+        return (
+            f"config heartbeat={payload.get('heartbeat_interval')} "
+            f"status={payload.get('status_interval')} "
+            f"reconnect={payload.get('reconnect_interval')} "
+            f"net={payload.get('net_ifname')} "
+            f"log={payload.get('log_path')} "
+            f"max_log_kb={payload.get('max_log_kb')} "
+            f"config_path={payload.get('config_path')}"
+        )
+
     return f"{msg_type} device={device_id} payload={payload} seq={seq}"
 
 
@@ -199,6 +210,7 @@ def interactive_loop(session):
     print(
         "commands: status, get_status, set_heartbeat <sec>, "
         "set_status <sec>, get_log [lines], "
+        "config get, config set <key> <value>, config save, "
         "service <status|start|stop|restart> <name>, shutdown, quit"
     )
 
@@ -242,6 +254,19 @@ def interactive_loop(session):
                     "action": parts[1],
                     "service": parts[2],
                 })
+            elif cmd == "config" and len(parts) >= 2:
+                subcmd = parts[1]
+                if subcmd == "get" and len(parts) == 2:
+                    session.send_command("get_config")
+                elif subcmd == "save" and len(parts) == 2:
+                    session.send_command("save_config")
+                elif subcmd == "set" and len(parts) >= 4:
+                    session.send_command("update_config", {
+                        "key": parts[2],
+                        "value": " ".join(parts[3:]),
+                    })
+                else:
+                    print("usage: config get | config set <key> <value> | config save")
             elif cmd == "shutdown" and len(parts) == 1:
                 session.send_command("shutdown")
             else:

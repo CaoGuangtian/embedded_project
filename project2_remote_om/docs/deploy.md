@@ -34,6 +34,17 @@ log_path=/var/log/device_agent/device_agent.log
 max_log_kb=1024
 ```
 
+Remote config keys allowed in the current stage:
+
+```text
+heartbeat_interval
+status_interval
+reconnect_interval
+net_ifname
+log_path
+max_log_kb
+```
+
 Current service management whitelist:
 
 ```text

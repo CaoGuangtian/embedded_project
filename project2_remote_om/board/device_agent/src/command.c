@@ -106,6 +106,8 @@ int command_handle_line(const char *line, struct agent_config *cfg,
 	char cmd[64];
 	char service[64];
 	char action[64];
+	char key[64];
+	char config_value[256];
 	char msg[128];
 	int value;
 	int seq;
@@ -147,6 +149,27 @@ int command_handle_line(const char *line, struct agent_config *cfg,
 			result_set(result, cmd, 1, msg);
 		else
 			result_set(result, cmd, 0, msg);
+	} else if (!strcmp(cmd, "get_config")) {
+		result->action = CMD_ACTION_SEND_CONFIG;
+		result_set(result, cmd, 1, "config scheduled");
+	} else if (!strcmp(cmd, "update_config")) {
+		if (json_get_string(line, "key", key, sizeof(key)) ||
+		    json_get_string(line, "value", config_value,
+				    sizeof(config_value))) {
+			result_set(result, cmd, 0, "missing key or value");
+			return 0;
+		}
+
+		if (agent_config_update_value(cfg, key, config_value, msg,
+					      sizeof(msg)) == 0)
+			result_set(result, cmd, 1, msg);
+		else
+			result_set(result, cmd, 0, msg);
+	} else if (!strcmp(cmd, "save_config")) {
+		if (agent_config_save(cfg) == 0)
+			result_set(result, cmd, 1, "config saved");
+		else
+			result_set(result, cmd, 0, "config save failed");
 	} else if (!strcmp(cmd, "set_interval")) {
 		int changed = 0;
 

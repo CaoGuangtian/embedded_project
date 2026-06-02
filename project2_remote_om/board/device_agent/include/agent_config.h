@@ -37,5 +37,8 @@ struct agent_config {
 void agent_config_defaults(struct agent_config *cfg);
 int agent_config_load(struct agent_config *cfg, const char *path);
 int agent_config_parse_args(struct agent_config *cfg, int argc, char **argv);
+int agent_config_save(const struct agent_config *cfg);
+int agent_config_update_value(struct agent_config *cfg, const char *key,
+			      const char *value, char *msg, int msg_len);
 
 #endif

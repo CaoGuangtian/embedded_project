@@ -38,4 +38,7 @@ Current remote commands:
 - `set_interval`
 - `get_log`
 - `service_ctrl`
+- `get_config`
+- `update_config`
+- `save_config`
 - `shutdown`

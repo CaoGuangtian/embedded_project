@@ -29,7 +29,12 @@ Planned test groups:
 13. Enter `service restart collector_demo` and confirm the script result is returned.
 14. Enter `service stop unknown_service` and confirm `service not allowed`.
 15. Enter `service bad_action collector_demo` and confirm `action not allowed`.
-16. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
+16. Enter `config get` and confirm a config summary is printed.
+17. Enter `config set heartbeat_interval 2` and confirm heartbeat interval changes.
+18. Enter `config set status_interval 5` and confirm status interval changes.
+19. Enter `config save` and confirm config is persisted.
+20. Enter `config set server_ip 1.2.3.4` and confirm `config key not allowed`.
+21. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
 
 Expected board output:
 
@@ -59,6 +64,9 @@ set_heartbeat <seconds>
 set_status <seconds>
 get_log [lines]
 service <status|start|stop|restart> <name>
+config get
+config set <key> <value>
+config save
 shutdown
 quit
 ```

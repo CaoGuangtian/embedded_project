@@ -53,6 +53,9 @@ set_heartbeat <seconds>
 set_status <seconds>
 get_log [lines]
 service <status|start|stop|restart> <name>
+config get
+config set <key> <value>
+config save
 shutdown
 quit
 ```
