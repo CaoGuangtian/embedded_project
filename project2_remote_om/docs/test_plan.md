@@ -34,7 +34,12 @@ Planned test groups:
 18. Enter `config set status_interval 5` and confirm status interval changes.
 19. Enter `config save` and confirm config is persisted.
 20. Enter `config set server_ip 1.2.3.4` and confirm `config key not allowed`.
-21. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
+21. Enter `ota upgrade unknown 1.1.0 http://server/pkg.tar.gz <valid_sha>` and confirm `target not allowed`.
+22. Enter `ota upgrade device_agent 1.1.0 ftp://server/pkg.tar.gz <valid_sha>` and confirm `bad url`.
+23. Enter `ota upgrade device_agent 1.1.0 http://server/pkg.tar.gz badsha` and confirm `bad sha256`.
+24. Enter `ota upgrade device_agent 1.1.0 http://server/pkg.tar.gz <wrong_sha>` and confirm `sha256 mismatch` or download failure.
+25. Enter `ota upgrade device_agent 1.1.0 http://server/pkg.tar.gz <correct_sha>` and confirm `download and sha256 ok`.
+26. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
 
 Expected board output:
 
@@ -67,6 +72,7 @@ service <status|start|stop|restart> <name>
 config get
 config set <key> <value>
 config save
+ota upgrade <target> <version> <url> <sha256>
 shutdown
 quit
 ```

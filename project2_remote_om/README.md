@@ -41,4 +41,5 @@ Current remote commands:
 - `get_config`
 - `update_config`
 - `save_config`
+- `ota_upgrade`
 - `shutdown`

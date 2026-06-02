@@ -1,6 +1,7 @@
 #include "command.h"
 
 #include "agent_config.h"
+#include "ota_manager.h"
 #include "service_manager.h"
 
 #include <stdio.h>
@@ -108,6 +109,10 @@ int command_handle_line(const char *line, struct agent_config *cfg,
 	char action[64];
 	char key[64];
 	char config_value[256];
+	char target[64];
+	char version[64];
+	char url[256];
+	char sha256[80];
 	char msg[128];
 	int value;
 	int seq;
@@ -170,6 +175,20 @@ int command_handle_line(const char *line, struct agent_config *cfg,
 			result_set(result, cmd, 1, "config saved");
 		else
 			result_set(result, cmd, 0, "config save failed");
+	} else if (!strcmp(cmd, "ota_upgrade")) {
+		if (json_get_string(line, "target", target, sizeof(target)) ||
+		    json_get_string(line, "version", version, sizeof(version)) ||
+		    json_get_string(line, "url", url, sizeof(url)) ||
+		    json_get_string(line, "sha256", sha256, sizeof(sha256))) {
+			result_set(result, cmd, 0, "missing ota args");
+			return 0;
+		}
+
+		if (ota_manager_upgrade_check_only(target, version, url, sha256,
+						   msg, sizeof(msg)) == 0)
+			result_set(result, cmd, 1, msg);
+		else
+			result_set(result, cmd, 0, msg);
 	} else if (!strcmp(cmd, "set_interval")) {
 		int changed = 0;
 

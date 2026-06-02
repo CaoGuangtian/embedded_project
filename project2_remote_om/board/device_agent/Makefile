@@ -9,6 +9,7 @@ SRCS := \
 	src/agent_log.c \
 	src/command.c \
 	src/net_client.c \
+	src/ota_manager.c \
 	src/protocol.c \
 	src/service_manager.c \
 	src/status.c

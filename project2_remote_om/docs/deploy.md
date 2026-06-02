@@ -45,6 +45,14 @@ log_path
 max_log_kb
 ```
 
+Current OTA framework:
+
+```text
+download path: /tmp/project2_ota_<target>.tar.gz
+allowed targets: device_agent, power_manager, collector_demo, app_service
+current action: download and SHA256 check only
+```
+
 Current service management whitelist:
 
 ```text

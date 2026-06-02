@@ -152,6 +152,7 @@ Supported first-stage commands:
 - `get_config`: send current runtime configuration
 - `update_config`: update whitelisted runtime configuration
 - `save_config`: persist current configuration to file
+- `ota_upgrade`: download an OTA package and verify SHA256
 - `shutdown`: stop `device_agent`
 
 Example `set_interval`:
@@ -303,4 +304,44 @@ Allowed remote config keys:
 The board rejects sensitive keys such as `server_ip`, `server_port`,
 `device_id`, `fw_version`, and `config_path`.
 
-Later stages will add OTA and power mode commands.
+Example `ota_upgrade`:
+
+```json
+{
+  "type": "command",
+  "device_id": "imx6ull-001",
+  "seq": 1100,
+  "timestamp": 1710000100,
+  "payload": {
+    "cmd": "ota_upgrade",
+    "args": {
+      "target": "device_agent",
+      "version": "1.1.0",
+      "url": "http://192.168.10.100:8000/ota/device_agent_v1.1.0.tar.gz",
+      "sha256": "abcdef123456abcdef123456abcdef123456abcdef123456abcdef123456abcd"
+    }
+  }
+}
+```
+
+Current OTA stage only downloads to a fixed `/tmp/project2_ota_<target>.tar.gz`
+path and checks SHA256. It does not replace binaries, restart services, run
+health checks, or roll back.
+
+Allowed OTA targets:
+
+- `device_agent`
+- `power_manager`
+- `collector_demo`
+- `app_service`
+
+Security limits:
+
+- `target` must be whitelisted
+- `version` and `target` must be simple tokens
+- `url` must start with `http://` or `https://`
+- `sha256` must be 64 hexadecimal characters
+- PC cannot choose the local download path
+
+Later stages will add binary replacement, service restart, health check,
+rollback, and power mode commands.

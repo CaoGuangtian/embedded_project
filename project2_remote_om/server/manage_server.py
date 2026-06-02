@@ -211,6 +211,7 @@ def interactive_loop(session):
         "commands: status, get_status, set_heartbeat <sec>, "
         "set_status <sec>, get_log [lines], "
         "config get, config set <key> <value>, config save, "
+        "ota upgrade <target> <version> <url> <sha256>, "
         "service <status|start|stop|restart> <name>, shutdown, quit"
     )
 
@@ -267,6 +268,13 @@ def interactive_loop(session):
                     })
                 else:
                     print("usage: config get | config set <key> <value> | config save")
+            elif cmd == "ota" and len(parts) == 6 and parts[1] == "upgrade":
+                session.send_command("ota_upgrade", {
+                    "target": parts[2],
+                    "version": parts[3],
+                    "url": parts[4],
+                    "sha256": parts[5],
+                })
             elif cmd == "shutdown" and len(parts) == 1:
                 session.send_command("shutdown")
             else:

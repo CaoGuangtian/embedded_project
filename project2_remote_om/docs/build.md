@@ -56,6 +56,7 @@ service <status|start|stop|restart> <name>
 config get
 config set <key> <value>
 config save
+ota upgrade <target> <version> <url> <sha256>
 shutdown
 quit
 ```
