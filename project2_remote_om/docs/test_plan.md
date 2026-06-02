@@ -21,6 +21,10 @@ Planned test groups:
 5. Confirm the PC keeps receiving `heartbeat` messages.
 6. Confirm the PC keeps receiving `status_report` messages.
 7. Stop the PC server, then start it again and confirm reconnect.
+8. Enter `get_status` in the PC server and confirm an immediate status report.
+9. Enter `set_heartbeat 2` and confirm heartbeat interval changes.
+10. Enter `set_status 5` and confirm status interval changes.
+11. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
 
 Expected board output:
 
@@ -39,4 +43,15 @@ Expected PC status summary:
 
 ```text
 status device=imx6ull-001 uptime=3600s mem=120000/256000KB rootfs=45% eth0=up fw=1.0.0 seq=3
+```
+
+PC-side interactive commands:
+
+```text
+status
+get_status
+set_heartbeat <seconds>
+set_status <seconds>
+shutdown
+quit
 ```

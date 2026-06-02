@@ -6,6 +6,7 @@ TARGET := device_agent
 SRCS := \
 	src/main.c \
 	src/agent_config.c \
+	src/command.c \
 	src/net_client.c \
 	src/protocol.c \
 	src/status.c

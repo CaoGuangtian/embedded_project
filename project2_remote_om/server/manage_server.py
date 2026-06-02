@@ -13,6 +13,7 @@ class DeviceSession:
         self.addr = None
         self.device_id = None
         self.last_message = None
+        self.seq = 1000
         self.lock = threading.Lock()
 
     def attach(self, conn, addr):
@@ -44,6 +45,39 @@ class DeviceSession:
     def snapshot(self):
         with self.lock:
             return self.addr, self.device_id, self.last_message
+
+    def send_command(self, cmd, args=None):
+        if args is None:
+            args = {}
+
+        with self.lock:
+            conn = self.conn
+            device_id = self.device_id or "unknown"
+            self.seq += 1
+            seq = self.seq
+
+        if not conn:
+            print("no device connected")
+            return False
+
+        obj = {
+            "type": "command",
+            "device_id": device_id,
+            "seq": seq,
+            "timestamp": int(time.time()),
+            "payload": {
+                "cmd": cmd,
+                "args": args,
+            },
+        }
+
+        try:
+            send_json_line(conn, obj)
+            print(f"sent command: {cmd} args={args} seq={seq}")
+            return True
+        except OSError as exc:
+            print(f"send command failed: {exc}")
+            return False
 
 
 def compact_json(obj):
@@ -127,7 +161,8 @@ def handle_client(conn, addr, session):
 
                     session.update(msg)
                     print(f"{addr}: {describe_message(msg)}")
-                    send_json_line(conn, make_ack(msg))
+                    if msg.get("type") != "ack":
+                        send_json_line(conn, make_ack(msg))
     except OSError as exc:
         print(f"{addr}: socket error: {exc}")
     finally:
@@ -153,7 +188,10 @@ def server_loop(host, port, session):
 
 
 def interactive_loop(session):
-    print("commands: status, quit")
+    print(
+        "commands: status, get_status, set_heartbeat <sec>, "
+        "set_status <sec>, shutdown, quit"
+    )
 
     while True:
         try:
@@ -171,7 +209,27 @@ def interactive_loop(session):
             print(f"addr={addr} device_id={device_id} last={msg}")
             continue
 
-        print("unknown command")
+        parts = line.split()
+        cmd = parts[0]
+
+        try:
+            if cmd == "get_status" and len(parts) == 1:
+                session.send_command("get_status")
+            elif cmd == "set_heartbeat" and len(parts) == 2:
+                session.send_command("set_interval", {
+                    "heartbeat_interval": int(parts[1]),
+                })
+            elif cmd == "set_status" and len(parts) == 2:
+                session.send_command("set_interval", {
+                    "status_interval": int(parts[1]),
+                })
+            elif cmd == "shutdown" and len(parts) == 1:
+                session.send_command("shutdown")
+            else:
+                print("unknown command")
+        except ValueError:
+            print("numeric argument expected")
+        continue
 
 
 def main():

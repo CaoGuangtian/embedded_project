@@ -27,4 +27,6 @@ device_agent -> heartbeat -> manage_server
 device_agent <- ack       <- manage_server
 device_agent -> status_report -> manage_server
 device_agent <- ack           <- manage_server
+device_agent <- command       <- manage_server
+device_agent -> ack           -> manage_server
 ```

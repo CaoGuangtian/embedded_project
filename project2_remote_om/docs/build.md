@@ -43,3 +43,14 @@ The board-side agent keeps running after registration. It sends heartbeat
 messages according to `heartbeat_interval` and reconnects after
 `reconnect_interval` seconds when the socket is broken. It also sends
 device status according to `status_interval`.
+
+The PC server supports these first-stage interactive commands:
+
+```text
+status
+get_status
+set_heartbeat <seconds>
+set_status <seconds>
+shutdown
+quit
+```

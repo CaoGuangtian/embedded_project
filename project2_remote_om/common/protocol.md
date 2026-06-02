@@ -108,4 +108,64 @@ Board to PC:
 ```
 
 The current stage requires `register`, `heartbeat`, `status_report`, and
-`ack`. Later stages will add `command` and remote operation commands.
+`ack`.
+
+## Remote Commands
+
+PC to board:
+
+```json
+{
+  "type": "command",
+  "device_id": "imx6ull-001",
+  "seq": 1001,
+  "timestamp": 1710000020,
+  "payload": {
+    "cmd": "get_status",
+    "args": {}
+  }
+}
+```
+
+Board command ACK:
+
+```json
+{
+  "type": "ack",
+  "device_id": "imx6ull-001",
+  "seq": 1001,
+  "timestamp": 1710000021,
+  "payload": {
+    "cmd": "get_status",
+    "result": "ok",
+    "msg": "status scheduled"
+  }
+}
+```
+
+Supported first-stage commands:
+
+- `get_status`: immediately send one `status_report`
+- `set_interval`: update runtime intervals
+- `shutdown`: stop `device_agent`
+
+Example `set_interval`:
+
+```json
+{
+  "type": "command",
+  "device_id": "imx6ull-001",
+  "seq": 1002,
+  "timestamp": 1710000025,
+  "payload": {
+    "cmd": "set_interval",
+    "args": {
+      "heartbeat_interval": 2,
+      "status_interval": 10
+    }
+  }
+}
+```
+
+Later stages will add log query, config persistence, service management, OTA,
+and power mode commands.
