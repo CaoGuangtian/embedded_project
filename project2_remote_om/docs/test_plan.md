@@ -24,7 +24,8 @@ Planned test groups:
 8. Enter `get_status` in the PC server and confirm an immediate status report.
 9. Enter `set_heartbeat 2` and confirm heartbeat interval changes.
 10. Enter `set_status 5` and confirm status interval changes.
-11. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
+11. Enter `get_log 20` and confirm recent board-side logs are printed.
+12. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
 
 Expected board output:
 
@@ -52,6 +53,7 @@ status
 get_status
 set_heartbeat <seconds>
 set_status <seconds>
+get_log [lines]
 shutdown
 quit
 ```

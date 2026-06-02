@@ -1,4 +1,5 @@
 #include "agent_config.h"
+#include "agent_log.h"
 #include "command.h"
 #include "net_client.h"
 #include "protocol.h"
@@ -37,26 +38,26 @@ static int send_message_wait_ack(int fd, const char *tag, const char *line)
 	char ack_result[32];
 	char ack_msg[128];
 
-	printf("send %s: %s", tag, line);
+	agent_log_debug("send %s: %s", tag, line);
 	if (net_client_send_all(fd, line, strlen(line))) {
-		fprintf(stderr, "send %s failed: %s\n", tag, strerror(errno));
+		agent_log_error("send %s failed: %s", tag, strerror(errno));
 		return -1;
 	}
 
 	memset(reply, 0, sizeof(reply));
 	if (net_client_recv_line(fd, reply, sizeof(reply), 5) <= 0) {
-		fprintf(stderr, "wait %s ack failed or timed out\n", tag);
+		agent_log_error("wait %s ack failed or timed out", tag);
 		return -1;
 	}
 
-	printf("recv %s ack: %s\n", tag, reply);
+	agent_log_debug("recv %s ack: %s", tag, reply);
 	if (protocol_parse_ack(reply, ack_result, sizeof(ack_result),
 			       ack_msg, sizeof(ack_msg))) {
-		fprintf(stderr, "server reply for %s is not an ack\n", tag);
+		agent_log_error("server reply for %s is not an ack", tag);
 		return -1;
 	}
 
-	printf("%s ack result=%s msg=%s\n", tag, ack_result, ack_msg);
+	agent_log_info("%s ack result=%s msg=%s", tag, ack_result, ack_msg);
 	return strcmp(ack_result, "ok") == 0 ? 0 : -1;
 }
 
@@ -69,11 +70,60 @@ static int send_status_report(int fd, const struct agent_config *cfg,
 	status_collect(cfg, &st);
 	if (protocol_build_status_report(proto, cfg, &st, line,
 					 sizeof(line))) {
-		fprintf(stderr, "build status_report message failed\n");
+		agent_log_error("build status_report message failed");
 		return -1;
 	}
 
 	return send_message_wait_ack(fd, "status_report", line);
+}
+
+struct log_send_context {
+	int fd;
+	const struct agent_config *cfg;
+	struct protocol_context *proto;
+	int failed;
+};
+
+static void send_log_line_cb(int index, const char *text, void *arg)
+{
+	struct log_send_context *ctx = arg;
+	char line[P2_LINE_MAX];
+
+	if (ctx->failed)
+		return;
+
+	if (protocol_build_log_line(ctx->proto, ctx->cfg, index, text, line,
+				    sizeof(line))) {
+		ctx->failed = 1;
+		return;
+	}
+
+	if (net_client_send_all(ctx->fd, line, strlen(line)))
+		ctx->failed = 1;
+}
+
+static int send_log_tail(int fd, const struct agent_config *cfg,
+			 struct protocol_context *proto, int lines)
+{
+	struct log_send_context ctx;
+
+	ctx.fd = fd;
+	ctx.cfg = cfg;
+	ctx.proto = proto;
+	ctx.failed = 0;
+
+	if (agent_log_tail(lines, send_log_line_cb, &ctx)) {
+		agent_log_error("log tail failed");
+		return -1;
+	}
+
+	if (ctx.failed) {
+		agent_log_error("send log tail failed");
+		return -1;
+	}
+
+	agent_log_info("sent log tail lines=%d", lines);
+	return 0;
 }
 
 static int send_command_ack(int fd, const struct agent_config *cfg,
@@ -82,11 +132,11 @@ static int send_command_ack(int fd, const struct agent_config *cfg,
 	char line[P2_LINE_MAX];
 
 	if (command_build_ack(cfg, result, line, sizeof(line))) {
-		fprintf(stderr, "build command ack failed\n");
+		agent_log_error("build command ack failed");
 		return -1;
 	}
 
-	printf("send command ack: %s", line);
+	agent_log_debug("send command ack: %s", line);
 	return net_client_send_all(fd, line, strlen(line));
 }
 
@@ -98,12 +148,24 @@ static int handle_server_line(int fd, struct agent_config *cfg,
 	if (command_handle_line(line, cfg, &result))
 		return 0;
 
-	printf("recv command: %s\n", line);
+	agent_log_info("recv command: %s", line);
+
+	if (result.action == CMD_ACTION_SEND_STATUS &&
+	    send_status_report(fd, cfg, proto)) {
+		result.ack_ok = 0;
+		snprintf(result.ack_msg, sizeof(result.ack_msg),
+			 "status failed");
+	}
+
+	if (result.action == CMD_ACTION_SEND_LOG &&
+	    send_log_tail(fd, cfg, proto, result.lines)) {
+		result.ack_ok = 0;
+		snprintf(result.ack_msg, sizeof(result.ack_msg),
+			 "log failed");
+	}
+
 	if (send_command_ack(fd, cfg, &result))
 		return -1;
-
-	if (result.action == CMD_ACTION_SEND_STATUS)
-		return send_status_report(fd, cfg, proto);
 
 	if (result.action == CMD_ACTION_SHUTDOWN)
 		g_stop = 1;
@@ -167,7 +229,7 @@ static int run_connected_session(struct agent_config *cfg,
 	long last_status = 0;
 
 	if (protocol_build_register(proto, cfg, line, sizeof(line))) {
-		fprintf(stderr, "build register message failed\n");
+		agent_log_error("build register message failed");
 		return -1;
 	}
 
@@ -182,8 +244,7 @@ static int run_connected_session(struct agent_config *cfg,
 
 			if (protocol_build_heartbeat(proto, cfg, uptime_sec,
 						     line, sizeof(line))) {
-				fprintf(stderr,
-					"build heartbeat message failed\n");
+				agent_log_error("build heartbeat message failed");
 				return -1;
 			}
 
@@ -220,30 +281,37 @@ int main(int argc, char **argv)
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 
-	printf("device_agent starting: id=%s server=%s:%d fw=%s "
-	       "heartbeat=%ds status=%ds reconnect=%ds net=%s\n",
-	       cfg.device_id, cfg.server_ip, cfg.server_port, cfg.fw_version,
-	       cfg.heartbeat_interval, cfg.status_interval,
-	       cfg.reconnect_interval, cfg.net_ifname);
+	if (agent_log_init(cfg.log_path, cfg.max_log_kb))
+		fprintf(stderr, "log init failed: %s\n", cfg.log_path);
+
+	agent_log_info("device_agent starting: id=%s server=%s:%d fw=%s "
+		       "heartbeat=%ds status=%ds reconnect=%ds net=%s log=%s",
+		       cfg.device_id, cfg.server_ip, cfg.server_port,
+		       cfg.fw_version, cfg.heartbeat_interval,
+		       cfg.status_interval, cfg.reconnect_interval,
+		       cfg.net_ifname, cfg.log_path);
 
 	while (!g_stop) {
 		fd = net_client_connect(cfg.server_ip, cfg.server_port);
 		if (fd < 0) {
-			fprintf(stderr, "connect %s:%d failed: %s\n",
-				cfg.server_ip, cfg.server_port, strerror(errno));
+			agent_log_error("connect %s:%d failed: %s",
+					cfg.server_ip, cfg.server_port,
+					strerror(errno));
 			sleep((unsigned int)cfg.reconnect_interval);
 			continue;
 		}
 
-		printf("connected to %s:%d\n", cfg.server_ip, cfg.server_port);
+		agent_log_info("connected to %s:%d", cfg.server_ip,
+			       cfg.server_port);
 		if (run_connected_session(&cfg, &proto, fd))
-			printf("session ended, reconnect later\n");
+			agent_log_info("session ended, reconnect later");
 
 		close(fd);
 		if (!g_stop)
 			sleep((unsigned int)cfg.reconnect_interval);
 	}
 
-	printf("device_agent stopping\n");
+	agent_log_info("device_agent stopping");
+	agent_log_close();
 	return 0;
 }

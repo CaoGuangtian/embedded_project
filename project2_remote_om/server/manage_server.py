@@ -15,6 +15,7 @@ class DeviceSession:
         self.last_message = None
         self.seq = 1000
         self.lock = threading.Lock()
+        self.send_lock = threading.Lock()
 
     def attach(self, conn, addr):
         with self.lock:
@@ -72,7 +73,8 @@ class DeviceSession:
         }
 
         try:
-            send_json_line(conn, obj)
+            with self.send_lock:
+                send_json_line(conn, obj)
             print(f"sent command: {cmd} args={args} seq={seq}")
             return True
         except OSError as exc:
@@ -131,6 +133,11 @@ def describe_message(msg):
             f"{ifname}={state} fw={fw} seq={seq}"
         )
 
+    if msg_type == "log_line":
+        index = payload.get("index", "unknown")
+        text = payload.get("text", "")
+        return f"log[{index}]: {text}"
+
     return f"{msg_type} device={device_id} payload={payload} seq={seq}"
 
 
@@ -161,8 +168,9 @@ def handle_client(conn, addr, session):
 
                     session.update(msg)
                     print(f"{addr}: {describe_message(msg)}")
-                    if msg.get("type") != "ack":
-                        send_json_line(conn, make_ack(msg))
+                    if msg.get("type") in ("register", "heartbeat", "status_report"):
+                        with session.send_lock:
+                            send_json_line(conn, make_ack(msg))
     except OSError as exc:
         print(f"{addr}: socket error: {exc}")
     finally:
@@ -190,7 +198,7 @@ def server_loop(host, port, session):
 def interactive_loop(session):
     print(
         "commands: status, get_status, set_heartbeat <sec>, "
-        "set_status <sec>, shutdown, quit"
+        "set_status <sec>, get_log [lines], shutdown, quit"
     )
 
     while True:
@@ -222,6 +230,11 @@ def interactive_loop(session):
             elif cmd == "set_status" and len(parts) == 2:
                 session.send_command("set_interval", {
                     "status_interval": int(parts[1]),
+                })
+            elif cmd == "get_log" and len(parts) <= 2:
+                lines = int(parts[1]) if len(parts) == 2 else 20
+                session.send_command("get_log", {
+                    "lines": lines,
                 })
             elif cmd == "shutdown" and len(parts) == 1:
                 session.send_command("shutdown")

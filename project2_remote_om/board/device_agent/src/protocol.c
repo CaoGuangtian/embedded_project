@@ -121,6 +121,32 @@ int protocol_build_status_report(struct protocol_context *ctx,
 	return 0;
 }
 
+int protocol_build_log_line(struct protocol_context *ctx,
+			    const struct agent_config *cfg,
+			    int index, const char *text, char *buf, size_t len)
+{
+	char device_id[128];
+	char escaped[512];
+	int written;
+
+	json_escape(cfg->device_id, device_id, sizeof(device_id));
+	json_escape(text, escaped, sizeof(escaped));
+
+	ctx->seq++;
+	written = snprintf(buf, len,
+			   "{\"type\":\"log_line\",\"device_id\":\"%s\","
+			   "\"seq\":%u,\"timestamp\":%ld,"
+			   "\"payload\":{\"index\":%d,"
+			   "\"text\":\"%s\"}}\n",
+			   device_id, ctx->seq, (long)time(NULL), index,
+			   escaped);
+
+	if (written < 0 || (size_t)written >= len)
+		return -1;
+
+	return 0;
+}
+
 static const char *json_find_value(const char *line, const char *key)
 {
 	char pattern[64];

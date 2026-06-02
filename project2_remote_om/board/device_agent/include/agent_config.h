@@ -6,6 +6,7 @@
 #define P2_FW_VERSION_MAX 32
 #define P2_CONFIG_PATH_MAX 256
 #define P2_NET_IFNAME_MAX 32
+#define P2_LOG_PATH_MAX 256
 
 #define P2_DEFAULT_DEVICE_ID "imx6ull-001"
 #define P2_DEFAULT_SERVER_IP "192.168.10.100"
@@ -16,6 +17,8 @@
 #define P2_DEFAULT_STATUS_INTERVAL 10
 #define P2_DEFAULT_RECONNECT_INTERVAL 3
 #define P2_DEFAULT_NET_IFNAME "eth0"
+#define P2_DEFAULT_LOG_PATH "/var/log/device_agent/device_agent.log"
+#define P2_DEFAULT_MAX_LOG_KB 1024
 
 struct agent_config {
 	char device_id[P2_DEVICE_ID_MAX];
@@ -24,7 +27,9 @@ struct agent_config {
 	int heartbeat_interval;
 	int status_interval;
 	int reconnect_interval;
+	int max_log_kb;
 	char net_ifname[P2_NET_IFNAME_MAX];
+	char log_path[P2_LOG_PATH_MAX];
 	char fw_version[P2_FW_VERSION_MAX];
 	char config_path[P2_CONFIG_PATH_MAX];
 };

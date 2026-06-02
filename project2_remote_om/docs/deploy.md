@@ -27,3 +27,9 @@ Planned log paths:
 /var/log/power_manager/power_manager.log
 ```
 
+Current `device_agent` config options:
+
+```text
+log_path=/var/log/device_agent/device_agent.log
+max_log_kb=1024
+```

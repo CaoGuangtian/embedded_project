@@ -122,6 +122,16 @@ int command_handle_line(const char *line, struct agent_config *cfg,
 	if (!strcmp(cmd, "get_status")) {
 		result->action = CMD_ACTION_SEND_STATUS;
 		result_set(result, cmd, 1, "status scheduled");
+	} else if (!strcmp(cmd, "get_log")) {
+		result->action = CMD_ACTION_SEND_LOG;
+		result->lines = 20;
+		if (json_get_int(line, "lines", &value) == 0)
+			result->lines = value;
+		if (result->lines < 1)
+			result->lines = 1;
+		if (result->lines > 100)
+			result->lines = 100;
+		result_set(result, cmd, 1, "log scheduled");
 	} else if (!strcmp(cmd, "set_interval")) {
 		int changed = 0;
 

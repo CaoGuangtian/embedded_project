@@ -147,6 +147,7 @@ Supported first-stage commands:
 
 - `get_status`: immediately send one `status_report`
 - `set_interval`: update runtime intervals
+- `get_log`: send recent device-agent log lines
 - `shutdown`: stop `device_agent`
 
 Example `set_interval`:
@@ -167,5 +168,37 @@ Example `set_interval`:
 }
 ```
 
-Later stages will add log query, config persistence, service management, OTA,
-and power mode commands.
+Example `get_log`:
+
+```json
+{
+  "type": "command",
+  "device_id": "imx6ull-001",
+  "seq": 1003,
+  "timestamp": 1710000030,
+  "payload": {
+    "cmd": "get_log",
+    "args": {
+      "lines": 20
+    }
+  }
+}
+```
+
+Board replies with zero or more log lines, followed by one command ACK:
+
+```json
+{
+  "type": "log_line",
+  "device_id": "imx6ull-001",
+  "seq": 21,
+  "timestamp": 1710000031,
+  "payload": {
+    "index": 0,
+    "text": "[2026-06-02 10:30:21] [INFO] connected"
+  }
+}
+```
+
+Later stages will add config persistence, service management, OTA, and power
+mode commands.

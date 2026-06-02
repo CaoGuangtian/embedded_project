@@ -51,6 +51,7 @@ status
 get_status
 set_heartbeat <seconds>
 set_status <seconds>
+get_log [lines]
 shutdown
 quit
 ```

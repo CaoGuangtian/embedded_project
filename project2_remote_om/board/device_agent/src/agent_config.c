@@ -50,8 +50,11 @@ void agent_config_defaults(struct agent_config *cfg)
 	cfg->heartbeat_interval = P2_DEFAULT_HEARTBEAT_INTERVAL;
 	cfg->status_interval = P2_DEFAULT_STATUS_INTERVAL;
 	cfg->reconnect_interval = P2_DEFAULT_RECONNECT_INTERVAL;
+	cfg->max_log_kb = P2_DEFAULT_MAX_LOG_KB;
 	snprintf(cfg->net_ifname, sizeof(cfg->net_ifname), "%s",
 		 P2_DEFAULT_NET_IFNAME);
+	snprintf(cfg->log_path, sizeof(cfg->log_path), "%s",
+		 P2_DEFAULT_LOG_PATH);
 	snprintf(cfg->fw_version, sizeof(cfg->fw_version), "%s",
 		 P2_DEFAULT_FW_VERSION);
 	snprintf(cfg->config_path, sizeof(cfg->config_path), "%s",
@@ -81,6 +84,11 @@ static void config_set_value(struct agent_config *cfg, const char *key,
 			cfg->reconnect_interval = parsed;
 	} else if (!strcmp(key, "net_ifname")) {
 		snprintf(cfg->net_ifname, sizeof(cfg->net_ifname), "%s", value);
+	} else if (!strcmp(key, "log_path")) {
+		snprintf(cfg->log_path, sizeof(cfg->log_path), "%s", value);
+	} else if (!strcmp(key, "max_log_kb")) {
+		if (parse_int(value, &parsed) == 0)
+			cfg->max_log_kb = parsed;
 	} else if (!strcmp(key, "fw_version")) {
 		snprintf(cfg->fw_version, sizeof(cfg->fw_version), "%s", value);
 	}
@@ -122,7 +130,8 @@ static void usage(const char *prog)
 		"usage: %s [-c config] [-s server_ip] [-p port] "
 		"[-d device_id] [-v fw_version] "
 		"[--heartbeat seconds] [--status seconds] "
-		"[--reconnect seconds] [--net-ifname name]\n",
+		"[--reconnect seconds] [--net-ifname name] "
+		"[--log-path path] [--max-log-kb kb]\n",
 		prog);
 }
 
@@ -170,6 +179,12 @@ int agent_config_parse_args(struct agent_config *cfg, int argc, char **argv)
 		} else if (!strcmp(argv[i], "--net-ifname") && i + 1 < argc) {
 			snprintf(cfg->net_ifname, sizeof(cfg->net_ifname), "%s",
 				 argv[++i]);
+		} else if (!strcmp(argv[i], "--log-path") && i + 1 < argc) {
+			snprintf(cfg->log_path, sizeof(cfg->log_path), "%s",
+				 argv[++i]);
+		} else if (!strcmp(argv[i], "--max-log-kb") && i + 1 < argc) {
+			if (parse_int(argv[++i], &cfg->max_log_kb))
+				goto bad_args;
 		} else {
 			goto bad_args;
 		}
@@ -183,6 +198,8 @@ int agent_config_parse_args(struct agent_config *cfg, int argc, char **argv)
 		cfg->status_interval = 1;
 	if (cfg->reconnect_interval < 1)
 		cfg->reconnect_interval = 1;
+	if (cfg->max_log_kb < 1)
+		cfg->max_log_kb = 1;
 
 	return 0;
 
