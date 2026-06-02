@@ -33,3 +33,12 @@ Current `device_agent` config options:
 log_path=/var/log/device_agent/device_agent.log
 max_log_kb=1024
 ```
+
+Current service management whitelist:
+
+```text
+collector_demo  -> /etc/init.d/S99collector_demo
+power_manager   -> /etc/init.d/S98power_manager
+network_monitor -> /etc/init.d/S97network_monitor
+app_service     -> /etc/init.d/S96app_service
+```

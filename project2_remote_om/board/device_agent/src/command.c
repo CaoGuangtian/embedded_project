@@ -1,6 +1,7 @@
 #include "command.h"
 
 #include "agent_config.h"
+#include "service_manager.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -103,6 +104,9 @@ int command_handle_line(const char *line, struct agent_config *cfg,
 {
 	char type[32];
 	char cmd[64];
+	char service[64];
+	char action[64];
+	char msg[128];
 	int value;
 	int seq;
 
@@ -132,6 +136,17 @@ int command_handle_line(const char *line, struct agent_config *cfg,
 		if (result->lines > 100)
 			result->lines = 100;
 		result_set(result, cmd, 1, "log scheduled");
+	} else if (!strcmp(cmd, "service_ctrl")) {
+		if (json_get_string(line, "service", service, sizeof(service)) ||
+		    json_get_string(line, "action", action, sizeof(action))) {
+			result_set(result, cmd, 0, "missing service or action");
+			return 0;
+		}
+
+		if (service_manager_handle(service, action, msg, sizeof(msg)) == 0)
+			result_set(result, cmd, 1, msg);
+		else
+			result_set(result, cmd, 0, msg);
 	} else if (!strcmp(cmd, "set_interval")) {
 		int changed = 0;
 

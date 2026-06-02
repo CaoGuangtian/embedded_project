@@ -25,7 +25,11 @@ Planned test groups:
 9. Enter `set_heartbeat 2` and confirm heartbeat interval changes.
 10. Enter `set_status 5` and confirm status interval changes.
 11. Enter `get_log 20` and confirm recent board-side logs are printed.
-12. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
+12. Enter `service status collector_demo` and confirm an ACK is returned.
+13. Enter `service restart collector_demo` and confirm the script result is returned.
+14. Enter `service stop unknown_service` and confirm `service not allowed`.
+15. Enter `service bad_action collector_demo` and confirm `action not allowed`.
+16. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
 
 Expected board output:
 
@@ -54,6 +58,7 @@ get_status
 set_heartbeat <seconds>
 set_status <seconds>
 get_log [lines]
+service <status|start|stop|restart> <name>
 shutdown
 quit
 ```

@@ -10,6 +10,7 @@ SRCS := \
 	src/command.c \
 	src/net_client.c \
 	src/protocol.c \
+	src/service_manager.c \
 	src/status.c
 OBJS := $(SRCS:.c=.o)
 

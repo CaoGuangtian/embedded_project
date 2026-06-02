@@ -148,6 +148,7 @@ Supported first-stage commands:
 - `get_status`: immediately send one `status_report`
 - `set_interval`: update runtime intervals
 - `get_log`: send recent device-agent log lines
+- `service_ctrl`: manage whitelisted board-side services
 - `shutdown`: stop `device_agent`
 
 Example `set_interval`:
@@ -200,5 +201,38 @@ Board replies with zero or more log lines, followed by one command ACK:
 }
 ```
 
-Later stages will add config persistence, service management, OTA, and power
-mode commands.
+Example `service_ctrl`:
+
+```json
+{
+  "type": "command",
+  "device_id": "imx6ull-001",
+  "seq": 1004,
+  "timestamp": 1710000040,
+  "payload": {
+    "cmd": "service_ctrl",
+    "args": {
+      "service": "collector_demo",
+      "action": "restart"
+    }
+  }
+}
+```
+
+Supported actions:
+
+- `status`
+- `start`
+- `stop`
+- `restart`
+
+Whitelisted services:
+
+- `collector_demo`
+- `power_manager`
+- `network_monitor`
+- `app_service`
+
+The board rejects services and actions outside these lists.
+
+Later stages will add config persistence, OTA, and power mode commands.

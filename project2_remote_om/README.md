@@ -31,3 +31,11 @@ device_agent <- command       <- manage_server
 device_agent -> ack           -> manage_server
 device_agent -> log_line      -> manage_server
 ```
+
+Current remote commands:
+
+- `get_status`
+- `set_interval`
+- `get_log`
+- `service_ctrl`
+- `shutdown`

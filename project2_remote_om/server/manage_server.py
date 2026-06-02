@@ -198,7 +198,8 @@ def server_loop(host, port, session):
 def interactive_loop(session):
     print(
         "commands: status, get_status, set_heartbeat <sec>, "
-        "set_status <sec>, get_log [lines], shutdown, quit"
+        "set_status <sec>, get_log [lines], "
+        "service <status|start|stop|restart> <name>, shutdown, quit"
     )
 
     while True:
@@ -235,6 +236,11 @@ def interactive_loop(session):
                 lines = int(parts[1]) if len(parts) == 2 else 20
                 session.send_command("get_log", {
                     "lines": lines,
+                })
+            elif cmd == "service" and len(parts) == 3:
+                session.send_command("service_ctrl", {
+                    "action": parts[1],
+                    "service": parts[2],
                 })
             elif cmd == "shutdown" and len(parts) == 1:
                 session.send_command("shutdown")
