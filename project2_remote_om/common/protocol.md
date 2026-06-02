@@ -324,9 +324,21 @@ Example `ota_upgrade`:
 }
 ```
 
-Current OTA stage only downloads to a fixed `/tmp/project2_ota_<target>.tar.gz`
-path and checks SHA256. It does not replace binaries, restart services, run
-health checks, or roll back.
+Current OTA stage downloads to a fixed `/tmp/project2_ota_<target>.tar.gz`
+path, checks SHA256, extracts the package to `/tmp/project2_ota_<target>/`,
+and validates package contents. It does not replace binaries, restart
+services, run health checks, or roll back.
+
+Expected package layout after extraction:
+
+```text
+bin/
+└── <target>
+
+version
+```
+
+The `version` file must match the command `version` argument.
 
 Allowed OTA targets:
 

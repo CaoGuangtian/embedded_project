@@ -38,8 +38,11 @@ Planned test groups:
 22. Enter `ota upgrade device_agent 1.1.0 ftp://server/pkg.tar.gz <valid_sha>` and confirm `bad url`.
 23. Enter `ota upgrade device_agent 1.1.0 http://server/pkg.tar.gz badsha` and confirm `bad sha256`.
 24. Enter `ota upgrade device_agent 1.1.0 http://server/pkg.tar.gz <wrong_sha>` and confirm `sha256 mismatch` or download failure.
-25. Enter `ota upgrade device_agent 1.1.0 http://server/pkg.tar.gz <correct_sha>` and confirm `download and sha256 ok`.
-26. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
+25. Use a tarball without `bin/device_agent` and confirm `missing target binary`.
+26. Use a tarball without `version` and confirm `missing version`.
+27. Use a tarball whose `version` does not match and confirm `version mismatch`.
+28. Use a valid tarball and confirm `ota package prepared`.
+29. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
 
 Expected board output:
 
@@ -75,4 +78,13 @@ config save
 ota upgrade <target> <version> <url> <sha256>
 shutdown
 quit
+```
+
+OTA package layout for tests:
+
+```text
+bin/
+└── device_agent
+
+version
 ```

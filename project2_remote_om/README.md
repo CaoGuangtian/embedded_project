@@ -43,3 +43,7 @@ Current remote commands:
 - `save_config`
 - `ota_upgrade`
 - `shutdown`
+
+Current OTA stage prepares packages only: download, SHA256 verification,
+extract, and package layout validation. It does not install or restart the
+target yet.

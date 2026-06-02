@@ -184,8 +184,8 @@ int command_handle_line(const char *line, struct agent_config *cfg,
 			return 0;
 		}
 
-		if (ota_manager_upgrade_check_only(target, version, url, sha256,
-						   msg, sizeof(msg)) == 0)
+		if (ota_manager_prepare_package(target, version, url, sha256,
+						msg, sizeof(msg)) == 0)
 			result_set(result, cmd, 1, msg);
 		else
 			result_set(result, cmd, 0, msg);

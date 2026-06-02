@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -80,6 +81,55 @@ static int run_wget(const char *url, const char *out_path)
 	return WEXITSTATUS(status);
 }
 
+static int run_rm_rf(const char *path)
+{
+	pid_t pid;
+	int status;
+
+	pid = fork();
+	if (pid < 0)
+		return -1;
+	if (pid == 0) {
+		execl("/bin/rm", "rm", "-rf", path, (char *)NULL);
+		execl("/usr/bin/rm", "rm", "-rf", path, (char *)NULL);
+		_exit(127);
+	}
+
+	if (waitpid(pid, &status, 0) < 0)
+		return -1;
+	if (!WIFEXITED(status))
+		return -1;
+
+	return WEXITSTATUS(status);
+}
+
+static int run_tar_extract(const char *package_path, const char *extract_dir)
+{
+	pid_t pid;
+	int status;
+
+	if (mkdir(extract_dir, 0755) != 0)
+		return -1;
+
+	pid = fork();
+	if (pid < 0)
+		return -1;
+	if (pid == 0) {
+		execl("/bin/tar", "tar", "-xzf", package_path, "-C",
+		      extract_dir, (char *)NULL);
+		execl("/usr/bin/tar", "tar", "-xzf", package_path, "-C",
+		      extract_dir, (char *)NULL);
+		_exit(127);
+	}
+
+	if (waitpid(pid, &status, 0) < 0)
+		return -1;
+	if (!WIFEXITED(status))
+		return -1;
+
+	return WEXITSTATUS(status);
+}
+
 static int read_sha256sum(const char *path, char *out, size_t out_len)
 {
 	char cmd[300];
@@ -103,11 +153,53 @@ static int read_sha256sum(const char *path, char *out, size_t out_len)
 	return ret;
 }
 
-int ota_manager_upgrade_check_only(const char *target, const char *version,
-				   const char *url, const char *sha256,
-				   char *msg, size_t msg_len)
+static int check_target_binary(const char *extract_dir, const char *target)
+{
+	char path[300];
+	struct stat st;
+
+	snprintf(path, sizeof(path), "%s/bin/%s", extract_dir, target);
+	if (stat(path, &st) < 0)
+		return -1;
+	if (!S_ISREG(st.st_mode))
+		return -1;
+
+	return 0;
+}
+
+static int check_version_file(const char *extract_dir, const char *version)
+{
+	char path[300];
+	char line[128];
+	FILE *fp;
+	size_t len;
+
+	snprintf(path, sizeof(path), "%s/version", extract_dir);
+	fp = fopen(path, "r");
+	if (!fp)
+		return -1;
+
+	if (!fgets(line, sizeof(line), fp)) {
+		fclose(fp);
+		return -1;
+	}
+	fclose(fp);
+
+	len = strlen(line);
+	while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r' ||
+			   line[len - 1] == ' ' || line[len - 1] == '\t')) {
+		line[--len] = '\0';
+	}
+
+	return strcmp(line, version) == 0 ? 0 : 1;
+}
+
+int ota_manager_prepare_package(const char *target, const char *version,
+				const char *url, const char *sha256,
+				char *msg, size_t msg_len)
 {
 	char path[256];
+	char extract_dir[256];
 	char actual[80];
 	int ret;
 
@@ -132,7 +224,11 @@ int ota_manager_upgrade_check_only(const char *target, const char *version,
 	}
 
 	snprintf(path, sizeof(path), "/tmp/project2_ota_%s.tar.gz", target);
+	snprintf(extract_dir, sizeof(extract_dir), "/tmp/project2_ota_%s",
+		 target);
+
 	unlink(path);
+	run_rm_rf(extract_dir);
 
 	ret = run_wget(url, path);
 	if (ret == 127) {
@@ -157,6 +253,36 @@ int ota_manager_upgrade_check_only(const char *target, const char *version,
 		return -1;
 	}
 
-	snprintf(msg, msg_len, "download and sha256 ok");
+	ret = run_tar_extract(path, extract_dir);
+	if (ret == 127) {
+		snprintf(msg, msg_len, "tar not found");
+		run_rm_rf(extract_dir);
+		return -1;
+	}
+	if (ret != 0) {
+		snprintf(msg, msg_len, "tar failed code=%d", ret);
+		run_rm_rf(extract_dir);
+		return -1;
+	}
+
+	if (check_target_binary(extract_dir, target)) {
+		snprintf(msg, msg_len, "missing target binary");
+		run_rm_rf(extract_dir);
+		return -1;
+	}
+
+	ret = check_version_file(extract_dir, version);
+	if (ret < 0) {
+		snprintf(msg, msg_len, "missing version");
+		run_rm_rf(extract_dir);
+		return -1;
+	}
+	if (ret > 0) {
+		snprintf(msg, msg_len, "version mismatch");
+		run_rm_rf(extract_dir);
+		return -1;
+	}
+
+	snprintf(msg, msg_len, "ota package prepared");
 	return 0;
 }
