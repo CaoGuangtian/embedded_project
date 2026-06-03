@@ -1,0 +1,50 @@
+#!/bin/sh
+
+APP="/opt/project2/bin/power_manager"
+CONF="/etc/power_manager/power_manager.conf"
+
+start() {
+	if [ ! -x "$APP" ]; then
+		echo "missing executable: $APP" >&2
+		return 1
+	fi
+
+	echo "initializing power_manager..."
+	"$APP" -c "$CONF"
+}
+
+stop() {
+	echo "power_manager is command-style in this stage"
+}
+
+restart() {
+	stop
+	start
+}
+
+status() {
+	if [ -f /var/run/power_manager.mode ]; then
+		echo "power_manager mode=$(cat /var/run/power_manager.mode)"
+	else
+		echo "power_manager mode=unknown"
+	fi
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		restart
+		;;
+	status)
+		status
+		;;
+	*)
+		echo "usage: $0 {start|stop|restart|status}" >&2
+		exit 1
+		;;
+esac

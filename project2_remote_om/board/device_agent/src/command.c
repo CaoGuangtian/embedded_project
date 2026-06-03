@@ -2,6 +2,7 @@
 
 #include "agent_config.h"
 #include "ota_manager.h"
+#include "power_client.h"
 #include "service_manager.h"
 
 #include <stdio.h>
@@ -100,6 +101,29 @@ static void result_set(struct command_result *result, const char *cmd,
 	snprintf(result->ack_msg, sizeof(result->ack_msg), "%s", msg);
 }
 
+static void json_escape(const char *src, char *dst, size_t dst_len)
+{
+	size_t used = 0;
+
+	if (dst_len == 0)
+		return;
+
+	while (*src && used + 1 < dst_len) {
+		unsigned char ch = (unsigned char)*src++;
+
+		if ((ch == '"' || ch == '\\') && used + 2 < dst_len) {
+			dst[used++] = '\\';
+			dst[used++] = (char)ch;
+		} else if (ch < 0x20) {
+			dst[used++] = ' ';
+		} else {
+			dst[used++] = (char)ch;
+		}
+	}
+
+	dst[used] = '\0';
+}
+
 int command_handle_line(const char *line, struct agent_config *cfg,
 			struct command_result *result)
 {
@@ -113,6 +137,7 @@ int command_handle_line(const char *line, struct agent_config *cfg,
 	char version[64];
 	char url[256];
 	char sha256[80];
+	char mode[64];
 	char msg[128];
 	int value;
 	int seq;
@@ -199,6 +224,30 @@ int command_handle_line(const char *line, struct agent_config *cfg,
 			result_set(result, cmd, 1, msg);
 		else
 			result_set(result, cmd, 0, msg);
+	} else if (!strcmp(cmd, "power_mode")) {
+		if (json_get_string(line, "action", action, sizeof(action))) {
+			result_set(result, cmd, 0, "missing action");
+			return 0;
+		}
+
+		if (!strcmp(action, "get")) {
+			if (power_client_get_mode(msg, sizeof(msg)) == 0)
+				result_set(result, cmd, 1, msg);
+			else
+				result_set(result, cmd, 0, msg);
+		} else if (!strcmp(action, "set")) {
+			if (json_get_string(line, "mode", mode, sizeof(mode))) {
+				result_set(result, cmd, 0, "missing mode");
+				return 0;
+			}
+
+			if (power_client_set_mode(mode, msg, sizeof(msg)) == 0)
+				result_set(result, cmd, 1, msg);
+			else
+				result_set(result, cmd, 0, msg);
+		} else {
+			result_set(result, cmd, 0, "bad power action");
+		}
 	} else if (!strcmp(cmd, "set_interval")) {
 		int changed = 0;
 
@@ -234,7 +283,12 @@ int command_build_ack(const struct agent_config *cfg,
 		      const struct command_result *result,
 		      char *buf, size_t len)
 {
+	char ack_cmd[128];
+	char ack_msg[256];
 	int written;
+
+	json_escape(result->ack_cmd, ack_cmd, sizeof(ack_cmd));
+	json_escape(result->ack_msg, ack_msg, sizeof(ack_msg));
 
 	written = snprintf(buf, len,
 			   "{\"type\":\"ack\",\"device_id\":\"%s\","
@@ -242,8 +296,8 @@ int command_build_ack(const struct agent_config *cfg,
 			   "\"payload\":{\"cmd\":\"%s\","
 			   "\"result\":\"%s\",\"msg\":\"%s\"}}\n",
 			   cfg->device_id, result->seq, (long)time(NULL),
-			   result->ack_cmd, result->ack_ok ? "ok" : "error",
-			   result->ack_msg);
+			   ack_cmd, result->ack_ok ? "ok" : "error",
+			   ack_msg);
 
 	if (written < 0 || (size_t)written >= len)
 		return -1;

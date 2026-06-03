@@ -213,6 +213,7 @@ def interactive_loop(session):
         "config get, config set <key> <value>, config save, "
         "ota upgrade <target> <version> <url> <sha256>, "
         "ota install <target>, "
+        "power get, power set <mode>, "
         "service <status|start|stop|restart> <name>, shutdown, quit"
     )
 
@@ -280,6 +281,19 @@ def interactive_loop(session):
                 session.send_command("ota_install", {
                     "target": parts[2],
                 })
+            elif cmd == "power" and len(parts) >= 2:
+                subcmd = parts[1]
+                if subcmd == "get" and len(parts) == 2:
+                    session.send_command("power_mode", {
+                        "action": "get",
+                    })
+                elif subcmd == "set" and len(parts) == 3:
+                    session.send_command("power_mode", {
+                        "action": "set",
+                        "mode": parts[2],
+                    })
+                else:
+                    print("usage: power get | power set <mode>")
             elif cmd == "shutdown" and len(parts) == 1:
                 session.send_command("shutdown")
             else:

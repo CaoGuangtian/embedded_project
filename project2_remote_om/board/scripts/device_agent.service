@@ -1,0 +1,12 @@
+[Unit]
+Description=Project2 Remote O&M Device Agent
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/project2/bin/device_agent -c /etc/device_agent/device_agent.conf
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

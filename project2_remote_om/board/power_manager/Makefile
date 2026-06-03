@@ -2,18 +2,12 @@ CC ?= arm-linux-gnueabihf-gcc
 CFLAGS ?= -std=gnu99 -Wall -Wextra -O2
 CPPFLAGS += -Iinclude
 
-TARGET := device_agent
+TARGET := power_manager
 SRCS := \
 	src/main.c \
-	src/agent_config.c \
-	src/agent_log.c \
-	src/command.c \
-	src/net_client.c \
-	src/ota_manager.c \
-	src/power_client.c \
-	src/protocol.c \
-	src/service_manager.c \
-	src/status.c
+	src/power_config.c \
+	src/power_log.c \
+	src/power_mode.c
 OBJS := $(SRCS:.c=.o)
 
 .PHONY: all clean
@@ -28,3 +22,4 @@ $(TARGET): $(OBJS)
 
 clean:
 	$(RM) $(TARGET) $(OBJS)
+

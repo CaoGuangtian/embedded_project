@@ -43,8 +43,27 @@ Current remote commands:
 - `save_config`
 - `ota_upgrade`
 - `ota_install`
+- `power_mode`
 - `shutdown`
 
 Current OTA flow is two-step: `ota_upgrade` prepares the package, and
 `ota_install` installs a prepared non-`device_agent` target with backup,
 restart, health check, and rollback.
+
+Current power flow uses `power_manager` as a command-style helper for
+`normal`, `idle`, `low_power`, `sleep`, and `maintenance` modes. Real suspend
+is reserved for a later stage.
+
+Board release packaging:
+
+```bash
+cd project2_remote_om
+./board/scripts/package_release.sh
+```
+
+Board install:
+
+```bash
+cd release/project2
+./install.sh .
+```

@@ -202,24 +202,48 @@ static int run_chmod_exec(const char *path)
 
 static int read_sha256sum(const char *path, char *out, size_t out_len)
 {
-	char cmd[300];
-	FILE *fp;
+	int pipefd[2];
+	pid_t pid;
+	int status;
+	ssize_t n;
 	int ret = -1;
 
 	if (out_len < 65)
 		return -1;
 
-	snprintf(cmd, sizeof(cmd), "sha256sum '%s'", path);
-	fp = popen(cmd, "r");
-	if (!fp)
+	if (pipe(pipefd) < 0)
 		return -1;
 
-	if (fgets(out, (int)out_len, fp) && strlen(out) >= 64) {
+	pid = fork();
+	if (pid < 0) {
+		close(pipefd[0]);
+		close(pipefd[1]);
+		return -1;
+	}
+
+	if (pid == 0) {
+		close(pipefd[0]);
+		dup2(pipefd[1], STDOUT_FILENO);
+		close(pipefd[1]);
+		execl("/bin/sha256sum", "sha256sum", path, (char *)NULL);
+		execl("/usr/bin/sha256sum", "sha256sum", path, (char *)NULL);
+		_exit(127);
+	}
+
+	close(pipefd[1]);
+	n = read(pipefd[0], out, out_len - 1);
+	close(pipefd[0]);
+	if (waitpid(pid, &status, 0) < 0)
+		return -1;
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+		return -1;
+
+	if (n >= 64) {
+		out[n] = '\0';
 		out[64] = '\0';
 		ret = 0;
 	}
 
-	pclose(fp);
 	return ret;
 }
 

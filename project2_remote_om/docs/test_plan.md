@@ -46,7 +46,11 @@ Planned test groups:
 30. Enter `ota install unknown` and confirm `target not allowed`.
 31. Enter `ota install collector_demo` without a prepared package and confirm `missing target binary`.
 32. Prepare a valid `collector_demo` package and confirm `install ok` or a rollback message if the service health check fails.
-33. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
+33. Enter `power get` and confirm current mode is returned.
+34. Enter `power set low_power` and confirm mode changes.
+35. Enter `power set sleep` with `allow_suspend=false` and confirm it logs but does not suspend.
+36. Enter `power set bad_mode` and confirm `bad mode`.
+37. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
 
 Expected board output:
 
@@ -81,6 +85,8 @@ config set <key> <value>
 config save
 ota upgrade <target> <version> <url> <sha256>
 ota install <target>
+power get
+power set <normal|idle|low_power|sleep|maintenance>
 shutdown
 quit
 ```

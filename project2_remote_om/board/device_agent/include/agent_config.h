@@ -1,6 +1,8 @@
 #ifndef AGENT_CONFIG_H
 #define AGENT_CONFIG_H
 
+#include <stddef.h>
+
 #define P2_DEVICE_ID_MAX 64
 #define P2_SERVER_IP_MAX 64
 #define P2_FW_VERSION_MAX 32
@@ -39,6 +41,6 @@ int agent_config_load(struct agent_config *cfg, const char *path);
 int agent_config_parse_args(struct agent_config *cfg, int argc, char **argv);
 int agent_config_save(const struct agent_config *cfg);
 int agent_config_update_value(struct agent_config *cfg, const char *key,
-			      const char *value, char *msg, int msg_len);
+			      const char *value, char *msg, size_t msg_len);
 
 #endif

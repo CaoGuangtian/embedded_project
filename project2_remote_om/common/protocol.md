@@ -154,6 +154,7 @@ Supported first-stage commands:
 - `save_config`: persist current configuration to file
 - `ota_upgrade`: download an OTA package and verify SHA256
 - `ota_install`: install a prepared OTA package
+- `power_mode`: get or set board power mode
 - `shutdown`: stop `device_agent`
 
 Example `set_interval`:
@@ -396,4 +397,50 @@ check service status
 rollback from .bak on failure
 ```
 
-Later stages will add device-agent self-upgrade and power mode commands.
+Example `power_mode` get:
+
+```json
+{
+  "type": "command",
+  "device_id": "imx6ull-001",
+  "seq": 1200,
+  "timestamp": 1710000200,
+  "payload": {
+    "cmd": "power_mode",
+    "args": {
+      "action": "get"
+    }
+  }
+}
+```
+
+Example `power_mode` set:
+
+```json
+{
+  "type": "command",
+  "device_id": "imx6ull-001",
+  "seq": 1201,
+  "timestamp": 1710000205,
+  "payload": {
+    "cmd": "power_mode",
+    "args": {
+      "action": "set",
+      "mode": "low_power"
+    }
+  }
+}
+```
+
+Allowed power modes:
+
+- `normal`
+- `idle`
+- `low_power`
+- `sleep`
+- `maintenance`
+
+Current `power_manager` stage records and logs mode changes. With
+`allow_suspend=false`, `sleep` does not actually suspend the board.
+
+Later stages will add device-agent self-upgrade and real suspend/resume hooks.

@@ -17,6 +17,13 @@ cd board/device_agent
 make
 ```
 
+Build board-side `power_manager`:
+
+```bash
+cd board/power_manager
+make
+```
+
 For local syntax experiments on a Linux PC, override `CC`:
 
 ```bash
@@ -58,6 +65,34 @@ config set <key> <value>
 config save
 ota upgrade <target> <version> <url> <sha256>
 ota install <target>
+power get
+power set <normal|idle|low_power|sleep|maintenance>
 shutdown
 quit
+```
+
+Package board release:
+
+```bash
+cd project2_remote_om
+./board/scripts/package_release.sh
+```
+
+The package is staged at:
+
+```text
+release/project2/
+├── bin/
+│   ├── device_agent
+│   └── power_manager
+├── config/
+│   ├── device_agent.conf
+│   └── power_manager.conf
+├── init.d/
+│   ├── S98power_manager
+│   └── S99device_agent
+├── systemd/
+│   ├── power_manager.service
+│   └── device_agent.service
+└── install.sh
 ```

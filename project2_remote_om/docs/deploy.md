@@ -6,10 +6,8 @@ Planned board layout:
 /opt/project2/
 ├── bin/
 │   ├── device_agent
-│   └── power_manager
-├── config/
-│   ├── device_agent.conf
-│   └── power_manager.conf
+│   ├── power_manager
+│   └── ...
 └── scripts/
 ```
 
@@ -25,6 +23,46 @@ Planned log paths:
 ```text
 /var/log/device_agent/device_agent.log
 /var/log/power_manager/power_manager.log
+```
+
+## Release Install
+
+Build and package on the host:
+
+```bash
+cd project2_remote_om/board/device_agent
+make
+
+cd ../power_manager
+make
+
+cd ../..
+./board/scripts/package_release.sh
+```
+
+Copy `release/project2` to the board, then install:
+
+```bash
+cd /path/to/release/project2
+./install.sh .
+```
+
+BusyBox init.d:
+
+```bash
+/etc/init.d/S99device_agent start
+/etc/init.d/S98power_manager status
+/etc/init.d/S99device_agent status
+/etc/init.d/S99device_agent stop
+```
+
+systemd:
+
+```bash
+systemctl start device_agent
+systemctl start power_manager
+systemctl status device_agent
+systemctl enable device_agent
 ```
 
 Current `device_agent` config options:
@@ -66,4 +104,12 @@ collector_demo  -> /etc/init.d/S99collector_demo
 power_manager   -> /etc/init.d/S98power_manager
 network_monitor -> /etc/init.d/S97network_monitor
 app_service     -> /etc/init.d/S96app_service
+```
+
+Power manager:
+
+```text
+config: /etc/power_manager/power_manager.conf
+state:  /var/run/power_manager.mode
+log:    /var/log/power_manager/power_manager.log
 ```

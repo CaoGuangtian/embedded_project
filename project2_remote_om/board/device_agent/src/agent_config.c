@@ -167,7 +167,7 @@ int agent_config_save(const struct agent_config *cfg)
 }
 
 int agent_config_update_value(struct agent_config *cfg, const char *key,
-			      const char *value, char *msg, int msg_len)
+			      const char *value, char *msg, size_t msg_len)
 {
 	int parsed;
 
@@ -196,15 +196,15 @@ int agent_config_update_value(struct agent_config *cfg, const char *key,
 			goto bad_value;
 		cfg->max_log_kb = parsed;
 	} else {
-		snprintf(msg, (size_t)msg_len, "config key not allowed");
+		snprintf(msg, msg_len, "config key not allowed");
 		return -1;
 	}
 
-	snprintf(msg, (size_t)msg_len, "%s updated", key);
+	snprintf(msg, msg_len, "%s updated", key);
 	return 0;
 
 bad_value:
-	snprintf(msg, (size_t)msg_len, "bad config value");
+	snprintf(msg, msg_len, "bad config value");
 	return -1;
 }
 

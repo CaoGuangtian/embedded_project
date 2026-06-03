@@ -79,9 +79,14 @@ static void log_write(const char *level, const char *fmt, va_list ap)
 	char ts[32];
 	time_t now = time(NULL);
 	struct tm tm_now;
+	struct tm *tm_ptr;
 	va_list copy;
 
-	localtime_r(&now, &tm_now);
+	tm_ptr = localtime(&now);
+	if (tm_ptr)
+		tm_now = *tm_ptr;
+	else
+		memset(&tm_now, 0, sizeof(tm_now));
 	strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &tm_now);
 
 	va_copy(copy, ap);
@@ -166,4 +171,3 @@ int agent_log_tail(int lines, void (*cb)(int index, const char *line, void *arg)
 
 	return 0;
 }
-
