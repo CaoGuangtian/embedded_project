@@ -1,5 +1,7 @@
 #include "ota_manager.h"
 
+#include "service_manager.h"
+
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,12 +10,36 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+struct install_target {
+	const char *name;
+	const char *install_path;
+};
+
+static const struct install_target g_install_targets[] = {
+	{ "power_manager", "/opt/project2/bin/power_manager" },
+	{ "collector_demo", "/opt/project2/bin/collector_demo" },
+	{ "app_service", "/opt/project2/bin/app_service" },
+};
+
 static int target_allowed(const char *target)
 {
 	return !strcmp(target, "device_agent") ||
 	       !strcmp(target, "power_manager") ||
 	       !strcmp(target, "collector_demo") ||
 	       !strcmp(target, "app_service");
+}
+
+static const struct install_target *find_install_target(const char *target)
+{
+	size_t i;
+
+	for (i = 0; i < sizeof(g_install_targets) / sizeof(g_install_targets[0]);
+	     i++) {
+		if (!strcmp(target, g_install_targets[i].name))
+			return &g_install_targets[i];
+	}
+
+	return NULL;
 }
 
 static int safe_token(const char *text)
@@ -119,6 +145,50 @@ static int run_tar_extract(const char *package_path, const char *extract_dir)
 		      extract_dir, (char *)NULL);
 		execl("/usr/bin/tar", "tar", "-xzf", package_path, "-C",
 		      extract_dir, (char *)NULL);
+		_exit(127);
+	}
+
+	if (waitpid(pid, &status, 0) < 0)
+		return -1;
+	if (!WIFEXITED(status))
+		return -1;
+
+	return WEXITSTATUS(status);
+}
+
+static int run_cp(const char *src, const char *dst)
+{
+	pid_t pid;
+	int status;
+
+	pid = fork();
+	if (pid < 0)
+		return -1;
+	if (pid == 0) {
+		execl("/bin/cp", "cp", src, dst, (char *)NULL);
+		execl("/usr/bin/cp", "cp", src, dst, (char *)NULL);
+		_exit(127);
+	}
+
+	if (waitpid(pid, &status, 0) < 0)
+		return -1;
+	if (!WIFEXITED(status))
+		return -1;
+
+	return WEXITSTATUS(status);
+}
+
+static int run_chmod_exec(const char *path)
+{
+	pid_t pid;
+	int status;
+
+	pid = fork();
+	if (pid < 0)
+		return -1;
+	if (pid == 0) {
+		execl("/bin/chmod", "chmod", "+x", path, (char *)NULL);
+		execl("/usr/bin/chmod", "chmod", "+x", path, (char *)NULL);
 		_exit(127);
 	}
 
@@ -284,5 +354,136 @@ int ota_manager_prepare_package(const char *target, const char *version,
 	}
 
 	snprintf(msg, msg_len, "ota package prepared");
+	return 0;
+}
+
+static int regular_file_exists(const char *path)
+{
+	struct stat st;
+
+	if (stat(path, &st) < 0)
+		return 0;
+
+	return S_ISREG(st.st_mode);
+}
+
+static int service_running_msg(const char *msg)
+{
+	return strstr(msg, " running") != NULL;
+}
+
+static int restart_and_check(const char *target, char *msg, size_t msg_len)
+{
+	char status_msg[128];
+
+	if (service_manager_handle(target, "restart", msg, msg_len) != 0)
+		return -1;
+
+	sleep(1);
+	if (service_manager_handle(target, "status", status_msg,
+				   sizeof(status_msg)) != 0)
+		return -1;
+
+	if (!service_running_msg(status_msg)) {
+		snprintf(msg, msg_len, "health check failed");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int rollback_binary(const char *target, const char *install_path,
+			   const char *backup_path, char *msg, size_t msg_len)
+{
+	if (run_cp(backup_path, install_path) != 0) {
+		snprintf(msg, msg_len, "rollback failed");
+		return -1;
+	}
+
+	run_chmod_exec(install_path);
+	if (service_manager_handle(target, "restart", msg, msg_len) != 0) {
+		snprintf(msg, msg_len, "rollback restart failed");
+		return -1;
+	}
+
+	snprintf(msg, msg_len, "rollback ok");
+	return 0;
+}
+
+int ota_manager_install_prepared(const char *target, char *msg,
+				 size_t msg_len)
+{
+	const struct install_target *entry;
+	char prepared_bin[300];
+	char backup_path[300];
+	char install_dir[256];
+	char *slash;
+
+	if (!target_allowed(target)) {
+		snprintf(msg, msg_len, "target not allowed");
+		return -1;
+	}
+
+	if (!strcmp(target, "device_agent")) {
+		snprintf(msg, msg_len, "self upgrade not supported yet");
+		return -1;
+	}
+
+	entry = find_install_target(target);
+	if (!entry) {
+		snprintf(msg, msg_len, "target not installable");
+		return -1;
+	}
+
+	snprintf(prepared_bin, sizeof(prepared_bin),
+		 "/tmp/project2_ota_%s/bin/%s", target, target);
+	if (!regular_file_exists(prepared_bin)) {
+		snprintf(msg, msg_len, "missing target binary");
+		return -1;
+	}
+
+	snprintf(install_dir, sizeof(install_dir), "%s", entry->install_path);
+	slash = strrchr(install_dir, '/');
+	if (!slash) {
+		snprintf(msg, msg_len, "bad install path");
+		return -1;
+	}
+	*slash = '\0';
+	if (access(install_dir, X_OK) != 0) {
+		snprintf(msg, msg_len, "install dir not found");
+		return -1;
+	}
+
+	if (!regular_file_exists(entry->install_path)) {
+		snprintf(msg, msg_len, "old binary not found");
+		return -1;
+	}
+
+	snprintf(backup_path, sizeof(backup_path), "%s.bak",
+		 entry->install_path);
+	if (run_cp(entry->install_path, backup_path) != 0) {
+		snprintf(msg, msg_len, "backup failed");
+		return -1;
+	}
+
+	if (run_cp(prepared_bin, entry->install_path) != 0 ||
+	    run_chmod_exec(entry->install_path) != 0) {
+		rollback_binary(target, entry->install_path, backup_path,
+				msg, msg_len);
+		return -1;
+	}
+
+	if (restart_and_check(target, msg, msg_len) != 0) {
+		char rollback_msg[128];
+
+		if (rollback_binary(target, entry->install_path, backup_path,
+				    rollback_msg, sizeof(rollback_msg)) == 0) {
+			snprintf(msg, msg_len, "health check failed, %s",
+				 rollback_msg);
+		}
+		return -1;
+	}
+
+	snprintf(msg, msg_len, "install ok");
 	return 0;
 }

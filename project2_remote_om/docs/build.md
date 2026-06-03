@@ -57,6 +57,7 @@ config get
 config set <key> <value>
 config save
 ota upgrade <target> <version> <url> <sha256>
+ota install <target>
 shutdown
 quit
 ```

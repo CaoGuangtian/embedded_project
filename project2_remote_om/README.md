@@ -42,8 +42,9 @@ Current remote commands:
 - `update_config`
 - `save_config`
 - `ota_upgrade`
+- `ota_install`
 - `shutdown`
 
-Current OTA stage prepares packages only: download, SHA256 verification,
-extract, and package layout validation. It does not install or restart the
-target yet.
+Current OTA flow is two-step: `ota_upgrade` prepares the package, and
+`ota_install` installs a prepared non-`device_agent` target with backup,
+restart, health check, and rollback.

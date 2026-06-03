@@ -42,7 +42,11 @@ Planned test groups:
 26. Use a tarball without `version` and confirm `missing version`.
 27. Use a tarball whose `version` does not match and confirm `version mismatch`.
 28. Use a valid tarball and confirm `ota package prepared`.
-29. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
+29. Enter `ota install device_agent` and confirm `self upgrade not supported yet`.
+30. Enter `ota install unknown` and confirm `target not allowed`.
+31. Enter `ota install collector_demo` without a prepared package and confirm `missing target binary`.
+32. Prepare a valid `collector_demo` package and confirm `install ok` or a rollback message if the service health check fails.
+33. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
 
 Expected board output:
 
@@ -76,6 +80,7 @@ config get
 config set <key> <value>
 config save
 ota upgrade <target> <version> <url> <sha256>
+ota install <target>
 shutdown
 quit
 ```

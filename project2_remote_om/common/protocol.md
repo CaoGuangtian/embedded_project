@@ -153,6 +153,7 @@ Supported first-stage commands:
 - `update_config`: update whitelisted runtime configuration
 - `save_config`: persist current configuration to file
 - `ota_upgrade`: download an OTA package and verify SHA256
+- `ota_install`: install a prepared OTA package
 - `shutdown`: stop `device_agent`
 
 Example `set_interval`:
@@ -355,5 +356,44 @@ Security limits:
 - `sha256` must be 64 hexadecimal characters
 - PC cannot choose the local download path
 
-Later stages will add binary replacement, service restart, health check,
-rollback, and power mode commands.
+The next command installs a package that has already been prepared by
+`ota_upgrade`.
+
+Example `ota_install`:
+
+```json
+{
+  "type": "command",
+  "device_id": "imx6ull-001",
+  "seq": 1101,
+  "timestamp": 1710000120,
+  "payload": {
+    "cmd": "ota_install",
+    "args": {
+      "target": "collector_demo"
+    }
+  }
+}
+```
+
+Current install paths:
+
+```text
+power_manager  -> /opt/project2/bin/power_manager
+collector_demo -> /opt/project2/bin/collector_demo
+app_service    -> /opt/project2/bin/app_service
+```
+
+`device_agent` self-upgrade is not supported in this stage. Install flow:
+
+```text
+check prepared package
+backup old binary to <target>.bak
+copy prepared binary into /opt/project2/bin/
+chmod +x
+restart service
+check service status
+rollback from .bak on failure
+```
+
+Later stages will add device-agent self-upgrade and power mode commands.

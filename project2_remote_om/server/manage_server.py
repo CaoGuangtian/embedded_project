@@ -212,6 +212,7 @@ def interactive_loop(session):
         "set_status <sec>, get_log [lines], "
         "config get, config set <key> <value>, config save, "
         "ota upgrade <target> <version> <url> <sha256>, "
+        "ota install <target>, "
         "service <status|start|stop|restart> <name>, shutdown, quit"
     )
 
@@ -274,6 +275,10 @@ def interactive_loop(session):
                     "version": parts[3],
                     "url": parts[4],
                     "sha256": parts[5],
+                })
+            elif cmd == "ota" and len(parts) == 3 and parts[1] == "install":
+                session.send_command("ota_install", {
+                    "target": parts[2],
                 })
             elif cmd == "shutdown" and len(parts) == 1:
                 session.send_command("shutdown")

@@ -51,7 +51,12 @@ Current OTA framework:
 download path: /tmp/project2_ota_<target>.tar.gz
 extract path: /tmp/project2_ota_<target>/
 allowed targets: device_agent, power_manager, collector_demo, app_service
-current action: download, SHA256 check, extract, package content check
+prepare action: download, SHA256 check, extract, package content check
+install action: backup, replace, chmod, restart, health check, rollback
+install paths:
+  power_manager  -> /opt/project2/bin/power_manager
+  collector_demo -> /opt/project2/bin/collector_demo
+  app_service    -> /opt/project2/bin/app_service
 ```
 
 Current service management whitelist:

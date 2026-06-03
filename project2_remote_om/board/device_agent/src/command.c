@@ -189,6 +189,16 @@ int command_handle_line(const char *line, struct agent_config *cfg,
 			result_set(result, cmd, 1, msg);
 		else
 			result_set(result, cmd, 0, msg);
+	} else if (!strcmp(cmd, "ota_install")) {
+		if (json_get_string(line, "target", target, sizeof(target))) {
+			result_set(result, cmd, 0, "missing target");
+			return 0;
+		}
+
+		if (ota_manager_install_prepared(target, msg, sizeof(msg)) == 0)
+			result_set(result, cmd, 1, msg);
+		else
+			result_set(result, cmd, 0, msg);
 	} else if (!strcmp(cmd, "set_interval")) {
 		int changed = 0;
 
