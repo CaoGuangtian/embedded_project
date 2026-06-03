@@ -521,6 +521,14 @@ static int service_running_msg(const char *msg)
 	return strstr(msg, " running") != NULL;
 }
 
+static int service_healthy_msg(const char *target, const char *msg)
+{
+	if (!strcmp(target, "power_manager"))
+		return strstr(msg, "power_manager mode=") != NULL;
+
+	return service_running_msg(msg);
+}
+
 static int restart_and_check(const char *target, char *msg, size_t msg_len)
 {
 	char status_msg[128];
@@ -533,7 +541,7 @@ static int restart_and_check(const char *target, char *msg, size_t msg_len)
 				   sizeof(status_msg)) != 0)
 		return -1;
 
-	if (!service_running_msg(status_msg)) {
+	if (!service_healthy_msg(target, status_msg)) {
 		snprintf(msg, msg_len, "health check failed");
 		return -1;
 	}

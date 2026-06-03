@@ -243,7 +243,10 @@ Whitelisted services:
 - `network_monitor`
 - `app_service`
 
-The board rejects services and actions outside these lists.
+The board rejects services and actions outside these lists. Daemon services
+return `running` or `stopped` for `status`. `power_manager` is a
+command-style helper in this stage, so `status` returns its recorded mode,
+for example `power_manager mode=low_power`; `stop` is unsupported.
 
 Example `get_config`:
 

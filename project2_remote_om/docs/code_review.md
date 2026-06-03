@@ -35,7 +35,10 @@ environment or on the i.MX6ULL board.
   - `/etc/init.d/S98power_manager`
   - `/etc/init.d/S97network_monitor`
   - `/etc/init.d/S96app_service`
-- Confirm service `status` result matches the process name used by `pidof`.
+- Confirm daemon service `status` result matches the process name used by
+  `pidof`.
+- Confirm `power_manager` status reports `mode=<mode>` because it is a
+  command-style helper, not a daemon.
 
 ## OTA
 
@@ -71,6 +74,8 @@ version
 - OTA SHA256 verification avoids shell command construction and uses
   `fork`, `pipe`, and `execl`.
 - OTA extraction validates archive entry paths before running `tar -xzf`.
+- Service status distinguishes daemons from command-style helpers.
+- OTA health check accepts `power_manager mode=<mode>` after helper upgrade.
 - systemd service avoids `StandardOutput=append:...` for broader target
   compatibility.
 - Config update API uses `size_t` for message buffer length.

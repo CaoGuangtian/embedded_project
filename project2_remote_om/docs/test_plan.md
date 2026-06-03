@@ -25,32 +25,34 @@ Planned test groups:
 9. Enter `set_heartbeat 2` and confirm heartbeat interval changes.
 10. Enter `set_status 5` and confirm status interval changes.
 11. Enter `get_log 20` and confirm recent board-side logs are printed.
-12. Enter `service status collector_demo` and confirm an ACK is returned.
-13. Enter `service restart collector_demo` and confirm the script result is returned.
-14. Enter `service stop unknown_service` and confirm `service not allowed`.
-15. Enter `service bad_action collector_demo` and confirm `action not allowed`.
-16. Enter `config get` and confirm a config summary is printed.
-17. Enter `config set heartbeat_interval 2` and confirm heartbeat interval changes.
-18. Enter `config set status_interval 5` and confirm status interval changes.
-19. Enter `config save` and confirm config is persisted.
-20. Enter `config set server_ip 1.2.3.4` and confirm `config key not allowed`.
-21. Enter `ota upgrade unknown 1.1.0 http://server/pkg.tar.gz <valid_sha>` and confirm `target not allowed`.
-22. Enter `ota upgrade device_agent 1.1.0 ftp://server/pkg.tar.gz <valid_sha>` and confirm `bad url`.
-23. Enter `ota upgrade device_agent 1.1.0 http://server/pkg.tar.gz badsha` and confirm `bad sha256`.
-24. Enter `ota upgrade device_agent 1.1.0 http://server/pkg.tar.gz <wrong_sha>` and confirm `sha256 mismatch` or download failure.
-25. Use a tarball without `bin/device_agent` and confirm `missing target binary`.
-26. Use a tarball without `version` and confirm `missing version`.
-27. Use a tarball whose `version` does not match and confirm `version mismatch`.
-28. Use a valid tarball and confirm `ota package prepared`.
-29. Enter `ota install device_agent` and confirm `self upgrade not supported yet`.
-30. Enter `ota install unknown` and confirm `target not allowed`.
-31. Enter `ota install collector_demo` without a prepared package and confirm `missing target binary`.
-32. Prepare a valid `collector_demo` package and confirm `install ok` or a rollback message if the service health check fails.
-33. Enter `power get` and confirm current mode is returned.
-34. Enter `power set low_power` and confirm mode changes.
-35. Enter `power set sleep` with `allow_suspend=false` and confirm it logs but does not suspend.
-36. Enter `power set bad_mode` and confirm `bad mode`.
-37. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
+12. Enter `service status collector_demo` and confirm a `running` or `stopped` ACK is returned.
+13. Enter `service status power_manager` and confirm `power_manager mode=<mode>` is returned.
+14. Enter `service stop power_manager` and confirm `power_manager stop unsupported`.
+15. Enter `service restart collector_demo` and confirm the script result is returned.
+16. Enter `service stop unknown_service` and confirm `service not allowed`.
+17. Enter `service bad_action collector_demo` and confirm `action not allowed`.
+18. Enter `config get` and confirm a config summary is printed.
+19. Enter `config set heartbeat_interval 2` and confirm heartbeat interval changes.
+20. Enter `config set status_interval 5` and confirm status interval changes.
+21. Enter `config save` and confirm config is persisted.
+22. Enter `config set server_ip 1.2.3.4` and confirm `config key not allowed`.
+23. Enter `ota upgrade unknown 1.1.0 http://server/pkg.tar.gz <valid_sha>` and confirm `target not allowed`.
+24. Enter `ota upgrade device_agent 1.1.0 ftp://server/pkg.tar.gz <valid_sha>` and confirm `bad url`.
+25. Enter `ota upgrade device_agent 1.1.0 http://server/pkg.tar.gz badsha` and confirm `bad sha256`.
+26. Enter `ota upgrade device_agent 1.1.0 http://server/pkg.tar.gz <wrong_sha>` and confirm `sha256 mismatch` or download failure.
+27. Use a tarball without `bin/device_agent` and confirm `missing target binary`.
+28. Use a tarball without `version` and confirm `missing version`.
+29. Use a tarball whose `version` does not match and confirm `version mismatch`.
+30. Use a valid tarball and confirm `ota package prepared`.
+31. Enter `ota install device_agent` and confirm `self upgrade not supported yet`.
+32. Enter `ota install unknown` and confirm `target not allowed`.
+33. Enter `ota install collector_demo` without a prepared package and confirm `missing target binary`.
+34. Prepare a valid `collector_demo` package and confirm `install ok` or a rollback message if the service health check fails.
+35. Enter `power get` and confirm current mode is returned.
+36. Enter `power set low_power` and confirm mode changes.
+37. Enter `power set sleep` with `allow_suspend=false` and confirm it logs but does not suspend.
+38. Enter `power set bad_mode` and confirm `bad mode`.
+39. Enter `shutdown` and confirm board-side `device_agent` exits cleanly.
 
 Expected board output:
 

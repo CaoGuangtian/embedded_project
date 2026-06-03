@@ -14,7 +14,8 @@ start() {
 }
 
 stop() {
-	echo "power_manager is command-style in this stage"
+	echo "power_manager stop unsupported: command-style helper" >&2
+	return 1
 }
 
 restart() {
