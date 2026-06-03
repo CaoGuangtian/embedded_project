@@ -156,6 +156,114 @@ static int run_tar_extract(const char *package_path, const char *extract_dir)
 	return WEXITSTATUS(status);
 }
 
+static int path_has_parent_ref(const char *path)
+{
+	const char *p = path;
+
+	while (*p) {
+		const char *start = p;
+		size_t len;
+
+		while (*p && *p != '/')
+			p++;
+
+		len = (size_t)(p - start);
+		if (len == 2 && start[0] == '.' && start[1] == '.')
+			return 1;
+
+		while (*p == '/')
+			p++;
+	}
+
+	return 0;
+}
+
+static int safe_tar_entry_path(const char *path)
+{
+	if (!path || !path[0])
+		return 0;
+	if (path[0] == '/')
+		return 0;
+	if (path_has_parent_ref(path))
+		return 0;
+
+	return 1;
+}
+
+static int validate_tar_entries(const char *package_path)
+{
+	int pipefd[2];
+	pid_t pid;
+	int status;
+	FILE *fp;
+	char line[512];
+	int saw_entry = 0;
+	int unsafe = 0;
+
+	if (pipe(pipefd) < 0)
+		return -1;
+
+	pid = fork();
+	if (pid < 0) {
+		close(pipefd[0]);
+		close(pipefd[1]);
+		return -1;
+	}
+
+	if (pid == 0) {
+		close(pipefd[0]);
+		dup2(pipefd[1], STDOUT_FILENO);
+		close(pipefd[1]);
+		execl("/bin/tar", "tar", "-tzf", package_path, (char *)NULL);
+		execl("/usr/bin/tar", "tar", "-tzf", package_path,
+		      (char *)NULL);
+		_exit(127);
+	}
+
+	close(pipefd[1]);
+	fp = fdopen(pipefd[0], "r");
+	if (!fp) {
+		close(pipefd[0]);
+		waitpid(pid, &status, 0);
+		return -1;
+	}
+
+	while (fgets(line, sizeof(line), fp)) {
+		size_t len = strlen(line);
+		int complete = 0;
+
+		while (len > 0 && (line[len - 1] == '\n' ||
+				   line[len - 1] == '\r')) {
+			line[--len] = '\0';
+			complete = 1;
+		}
+
+		if (!complete && len + 1 == sizeof(line)) {
+			int ch;
+
+			unsafe = 1;
+			while ((ch = fgetc(fp)) != EOF && ch != '\n')
+				;
+		}
+
+		saw_entry = 1;
+		if (!safe_tar_entry_path(line))
+			unsafe = 1;
+	}
+
+	fclose(fp);
+	if (waitpid(pid, &status, 0) < 0)
+		return -1;
+	if (!WIFEXITED(status))
+		return -1;
+	if (WEXITSTATUS(status) != 0)
+		return WEXITSTATUS(status);
+	if (unsafe || !saw_entry)
+		return -2;
+
+	return 0;
+}
+
 static int run_cp(const char *src, const char *dst)
 {
 	pid_t pid;
@@ -343,6 +451,23 @@ int ota_manager_prepare_package(const char *target, const char *version,
 
 	if (strcasecmp(actual, sha256)) {
 		snprintf(msg, msg_len, "sha256 mismatch");
+		unlink(path);
+		return -1;
+	}
+
+	ret = validate_tar_entries(path);
+	if (ret == 127) {
+		snprintf(msg, msg_len, "tar not found");
+		unlink(path);
+		return -1;
+	}
+	if (ret == -2) {
+		snprintf(msg, msg_len, "unsafe tar path");
+		unlink(path);
+		return -1;
+	}
+	if (ret != 0) {
+		snprintf(msg, msg_len, "tar list failed code=%d", ret);
 		unlink(path);
 		return -1;
 	}

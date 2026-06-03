@@ -49,6 +49,8 @@ version
 ```
 
 - Confirm OTA prepare leaves files only under `/tmp/project2_ota_<target>/`.
+- Confirm OTA prepare rejects archive entries with absolute paths or `..`
+  path segments.
 - Confirm `ota install device_agent` is rejected.
 - Confirm rollback restores `<target>.bak` after failed health check.
 - Confirm target install paths exist under `/opt/project2/bin/`.
@@ -64,8 +66,11 @@ version
 ## Review Fixes Already Applied
 
 - Command ACK strings are JSON-escaped before being sent.
+- Heartbeat and status-report ACKs are handled asynchronously so command
+  messages are not consumed by a blocking ACK wait.
 - OTA SHA256 verification avoids shell command construction and uses
   `fork`, `pipe`, and `execl`.
+- OTA extraction validates archive entry paths before running `tar -xzf`.
 - systemd service avoids `StandardOutput=append:...` for broader target
   compatibility.
 - Config update API uses `size_t` for message buffer length.

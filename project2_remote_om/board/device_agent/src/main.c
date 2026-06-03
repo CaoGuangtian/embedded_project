@@ -32,17 +32,25 @@ static long monotonic_seconds(void)
 	return ts.tv_sec;
 }
 
+static int send_message_only(int fd, const char *tag, const char *line)
+{
+	agent_log_debug("send %s: %s", tag, line);
+	if (net_client_send_all(fd, line, strlen(line))) {
+		agent_log_error("send %s failed: %s", tag, strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
 static int send_message_wait_ack(int fd, const char *tag, const char *line)
 {
 	char reply[P2_LINE_MAX];
 	char ack_result[32];
 	char ack_msg[128];
 
-	agent_log_debug("send %s: %s", tag, line);
-	if (net_client_send_all(fd, line, strlen(line))) {
-		agent_log_error("send %s failed: %s", tag, strerror(errno));
+	if (send_message_only(fd, tag, line))
 		return -1;
-	}
 
 	memset(reply, 0, sizeof(reply));
 	if (net_client_recv_line(fd, reply, sizeof(reply), 5) <= 0) {
@@ -74,7 +82,7 @@ static int send_status_report(int fd, const struct agent_config *cfg,
 		return -1;
 	}
 
-	return send_message_wait_ack(fd, "status_report", line);
+	return send_message_only(fd, "status_report", line);
 }
 
 struct log_send_context {
@@ -163,9 +171,19 @@ static int handle_server_line(int fd, struct agent_config *cfg,
 			      struct protocol_context *proto, const char *line)
 {
 	struct command_result result;
+	char ack_result[32];
+	char ack_msg[128];
 
-	if (command_handle_line(line, cfg, &result))
+	if (command_handle_line(line, cfg, &result)) {
+		if (protocol_parse_ack(line, ack_result, sizeof(ack_result),
+				       ack_msg, sizeof(ack_msg)) == 0) {
+			agent_log_debug("recv async ack result=%s msg=%s",
+					ack_result, ack_msg);
+		} else {
+			agent_log_debug("ignore server line: %s", line);
+		}
 		return 0;
+	}
 
 	agent_log_info("recv command: %s", line);
 
@@ -274,7 +292,7 @@ static int run_connected_session(struct agent_config *cfg,
 				return -1;
 			}
 
-			if (send_message_wait_ack(fd, "heartbeat", line))
+			if (send_message_only(fd, "heartbeat", line))
 				return -1;
 			last_heartbeat = now;
 		}

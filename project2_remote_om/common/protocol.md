@@ -82,7 +82,9 @@ Board to PC:
 ```
 
 The PC replies with the same ACK format. If the ACK is missing or invalid,
-the board closes the socket and enters reconnect flow.
+the board records the asynchronous ACK when it is received. The board does
+not block waiting for heartbeat ACKs, so PC commands can be received at any
+time.
 
 ### Status Report
 
@@ -108,7 +110,9 @@ Board to PC:
 ```
 
 The current stage requires `register`, `heartbeat`, `status_report`, and
-`ack`.
+`ack`. `register` uses a synchronous ACK during connection setup.
+`heartbeat` and `status_report` use asynchronous ACK handling in the main
+receive loop.
 
 ## Remote Commands
 
@@ -327,9 +331,9 @@ Example `ota_upgrade`:
 ```
 
 Current OTA stage downloads to a fixed `/tmp/project2_ota_<target>.tar.gz`
-path, checks SHA256, extracts the package to `/tmp/project2_ota_<target>/`,
-and validates package contents. It does not replace binaries, restart
-services, run health checks, or roll back.
+path, checks SHA256, rejects unsafe archive paths, extracts the package to
+`/tmp/project2_ota_<target>/`, and validates package contents. It does not
+replace binaries, restart services, run health checks, or roll back.
 
 Expected package layout after extraction:
 
@@ -356,6 +360,8 @@ Security limits:
 - `url` must start with `http://` or `https://`
 - `sha256` must be 64 hexadecimal characters
 - PC cannot choose the local download path
+- archive entries must be relative paths and must not contain `..` path
+  segments
 
 The next command installs a package that has already been prepared by
 `ota_upgrade`.
