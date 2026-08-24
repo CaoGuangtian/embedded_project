@@ -1,0 +1,15 @@
+[Unit]
+Description=i.MX6ULL Data Monitor System Service
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/datamon/datamon.env
+ExecStartPre=/opt/datamon/load_modules.sh /opt/datamon/modules
+ExecStart=/opt/datamon/bin/dm_collector -s ${SERVER_IP} -p ${SERVER_PORT} -i ${INTERVAL_MS} -l ${LOG_PATH} --max-log-kb ${MAX_LOG_KB} --ps ${PS_THRESHOLD} --als ${ALS_THRESHOLD} --filter-alpha ${FILTER_ALPHA_PERCENT} --config /etc/datamon/datamon.env
+ExecStopPost=/opt/datamon/unload_modules.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

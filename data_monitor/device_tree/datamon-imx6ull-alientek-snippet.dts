@@ -1,0 +1,87 @@
+/*
+ * Merge this snippet into the board DTS, for example:
+ *
+ *   linux-imx-4.1.15-2.1.0-e48931b1-v2.8/arch/arm/boot/dts/
+ *   imx6ull-alientek-emmc.dts or imx6ull-alientek-nand.dts
+ *
+ * The GPIO numbers below match common ALIENTEK i.MX6ULL examples:
+ *   LED:  GPIO1_IO03, active low
+ *   BEEP: GPIO5_IO01, active low
+ *   KEY:  GPIO1_IO18, active low
+ *
+ * If your board schematic differs, change these GPIOs and pinctrl groups.
+ */
+
+/ {
+	/*
+	 * The stock ALIENTEK DTS already owns LED and BEEP through gpio-leds.
+	 * Delete it before adding project-specific character-device nodes,
+	 * otherwise gpio_request() will fail with -EBUSY.
+	 */
+	/delete-node/ leds;
+
+	dm_led {
+		compatible = "dm,led";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_leds>;
+		led-gpio = <&gpio1 3 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
+	dm_beep {
+		compatible = "dm,beep";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_beep>;
+		beep-gpio = <&gpio5 1 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
+	dm_key {
+		compatible = "dm,key";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+		key-gpio = <&gpio1 18 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+};
+
+/*
+ * The stock DTS usually has a gpio_keys label using GPIO1_IO18. Disable it
+ * before dm_key requests the same GPIO.
+ */
+&gpio_keys {
+	status = "disabled";
+};
+
+/*
+ * AP3216C normally sits on I2C1 at 0x1e in the ALIENTEK DTS.
+ * Delete the stock node before creating the project node at the same address.
+ */
+&i2c1 {
+	status = "okay";
+
+	/delete-node/ ap3216c@1e;
+
+	dm_ap3216c@1e {
+		compatible = "dm,ap3216c";
+		reg = <0x1e>;
+		status = "okay";
+	};
+};
+
+/*
+ * ICM20608 normally sits on ECSPI3 CS0 in the ALIENTEK DTS.
+ * Make sure the controller pinctrl and chip-select match your board file.
+ */
+&ecspi3 {
+	status = "okay";
+
+	/delete-node/ icm20608@0;
+
+	dm_icm20608@0 {
+		compatible = "dm,icm20608";
+		reg = <0>;
+		spi-max-frequency = <8000000>;
+		status = "okay";
+	};
+};
