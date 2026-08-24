@@ -51,12 +51,12 @@ bin/
 version
 ```
 
-- Confirm OTA prepare leaves files only under `/tmp/project2_ota_<target>/`.
+- Confirm OTA prepare leaves files only under `/tmp/om_ota_<target>/`.
 - Confirm OTA prepare rejects archive entries with absolute paths or `..`
   path segments.
 - Confirm `ota install device_agent` is rejected.
 - Confirm rollback restores `<target>.bak` after failed health check.
-- Confirm target install paths exist under `/opt/project2/bin/`.
+- Confirm target install paths exist under `/opt/remote_om/bin/`.
 
 ## Security Assumptions
 
@@ -90,4 +90,4 @@ version
 - Confirm `device_agent` can write `/etc/device_agent/device_agent.conf`
   when `config save` is used.
 - Confirm `device_agent` can write `/var/log/device_agent/device_agent.log`.
-- Confirm OTA install paths exist under `/opt/project2/bin`.
+- Confirm OTA install paths exist under `/opt/remote_om/bin`.

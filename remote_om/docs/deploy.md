@@ -3,7 +3,7 @@
 Planned board layout:
 
 ```text
-/opt/project2/
+/opt/remote_om/
 ├── bin/
 │   ├── device_agent
 │   ├── power_manager
@@ -30,7 +30,7 @@ Planned log paths:
 Build and package on the host:
 
 ```bash
-cd project2_remote_om/board/device_agent
+cd remote_om/board/device_agent
 make
 
 cd ../power_manager
@@ -40,10 +40,10 @@ cd ../..
 ./board/scripts/package_release.sh
 ```
 
-Copy `release/project2` to the board, then install:
+Copy `release/remote_om` to the board, then install:
 
 ```bash
-cd /path/to/release/project2
+cd /path/to/release/remote_om
 ./install.sh .
 ```
 
@@ -86,15 +86,15 @@ max_log_kb
 Current OTA framework:
 
 ```text
-download path: /tmp/project2_ota_<target>.tar.gz
-extract path: /tmp/project2_ota_<target>/
+download path: /tmp/om_ota_<target>.tar.gz
+extract path: /tmp/om_ota_<target>/
 allowed targets: device_agent, power_manager, collector_demo, app_service
 prepare action: download, SHA256 check, extract, package content check
 install action: backup, replace, chmod, restart, health check, rollback
 install paths:
-  power_manager  -> /opt/project2/bin/power_manager
-  collector_demo -> /opt/project2/bin/collector_demo
-  app_service    -> /opt/project2/bin/app_service
+  power_manager  -> /opt/remote_om/bin/power_manager
+  collector_demo -> /opt/remote_om/bin/collector_demo
+  app_service    -> /opt/remote_om/bin/app_service
 ```
 
 Current service management whitelist:

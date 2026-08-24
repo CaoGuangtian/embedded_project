@@ -57,13 +57,13 @@ is reserved for a later stage.
 Board release packaging:
 
 ```bash
-cd project2_remote_om
+cd remote_om
 ./board/scripts/package_release.sh
 ```
 
 Board install:
 
 ```bash
-cd release/project2
+cd release/remote_om
 ./install.sh .
 ```

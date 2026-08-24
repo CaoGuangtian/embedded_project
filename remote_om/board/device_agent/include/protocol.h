@@ -7,7 +7,7 @@
 #include "agent_config.h"
 #include "status.h"
 
-#define P2_LINE_MAX 1024
+#define OM_LINE_MAX 1024
 
 struct protocol_context {
 	unsigned int seq;

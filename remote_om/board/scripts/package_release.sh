@@ -3,7 +3,7 @@
 set -eu
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
-OUT_DIR="${1:-$ROOT_DIR/release/project2}"
+OUT_DIR="${1:-$ROOT_DIR/release/remote_om}"
 
 mkdir -p "$OUT_DIR/bin" "$OUT_DIR/config" "$OUT_DIR/init.d" "$OUT_DIR/systemd"
 
@@ -49,7 +49,7 @@ else
 fi
 
 cat > "$OUT_DIR/README.txt" <<'EOF'
-Project2 board release
+Remote OM board release
 
 Install:
 

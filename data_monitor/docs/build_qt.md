@@ -18,7 +18,7 @@ cmake --build build
 ```
 
 On Windows with Qt Creator, open `pc_qt/CMakeLists.txt`, choose a Qt kit, then
-build and run `datamon_monitor`.
+build and run `datamon_gui`.
 
 ## Usage
 

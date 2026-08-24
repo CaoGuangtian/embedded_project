@@ -1,8 +1,8 @@
-#include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/i2c.h>
+#include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -27,10 +27,7 @@ struct dm_ap3216c_sample {
 
 struct dm_ap3216c_dev {
 	struct i2c_client *client;
-	dev_t devt;
-	struct cdev cdev;
-	struct class *class;
-	struct device *device;
+	struct miscdevice misc_dev;
 	struct mutex lock;
 };
 
@@ -114,52 +111,52 @@ static const struct file_operations dm_ap3216c_fops = {
 	.llseek = no_llseek,
 };
 
-static int dm_ap3216c_chrdev_init(struct dm_ap3216c_dev *ap)
+/* Sysfs Show Callbacks for direct Shell debugging */
+static ssize_t show_ir(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	int ret;
+	struct dm_ap3216c_dev *ap = dev_get_drvdata(dev);
+	struct dm_ap3216c_sample sample;
 
-	ret = alloc_chrdev_region(&ap->devt, 0, 1, DM_AP3216C_NAME);
-	if (ret)
-		return ret;
+	if (!ap || dm_ap3216c_read_sample(ap, &sample) < 0)
+		return sprintf(buf, "-1\n");
 
-	cdev_init(&ap->cdev, &dm_ap3216c_fops);
-	ap->cdev.owner = THIS_MODULE;
-
-	ret = cdev_add(&ap->cdev, ap->devt, 1);
-	if (ret)
-		goto err_unregister;
-
-	ap->class = class_create(THIS_MODULE, DM_AP3216C_NAME);
-	if (IS_ERR(ap->class)) {
-		ret = PTR_ERR(ap->class);
-		goto err_cdev;
-	}
-
-	ap->device = device_create(ap->class, NULL, ap->devt, NULL,
-				   DM_AP3216C_NAME);
-	if (IS_ERR(ap->device)) {
-		ret = PTR_ERR(ap->device);
-		goto err_class;
-	}
-
-	return 0;
-
-err_class:
-	class_destroy(ap->class);
-err_cdev:
-	cdev_del(&ap->cdev);
-err_unregister:
-	unregister_chrdev_region(ap->devt, 1);
-	return ret;
+	return sprintf(buf, "%u\n", sample.ir);
 }
 
-static void dm_ap3216c_chrdev_exit(struct dm_ap3216c_dev *ap)
+static ssize_t show_als(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	device_destroy(ap->class, ap->devt);
-	class_destroy(ap->class);
-	cdev_del(&ap->cdev);
-	unregister_chrdev_region(ap->devt, 1);
+	struct dm_ap3216c_dev *ap = dev_get_drvdata(dev);
+	struct dm_ap3216c_sample sample;
+
+	if (!ap || dm_ap3216c_read_sample(ap, &sample) < 0)
+		return sprintf(buf, "-1\n");
+
+	return sprintf(buf, "%u\n", sample.als);
 }
+
+static ssize_t show_ps(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dm_ap3216c_dev *ap = dev_get_drvdata(dev);
+	struct dm_ap3216c_sample sample;
+
+	if (!ap || dm_ap3216c_read_sample(ap, &sample) < 0)
+		return sprintf(buf, "-1\n");
+
+	return sprintf(buf, "%u\n", sample.ps);
+}
+
+static DEVICE_ATTR(ir, 0444, show_ir, NULL);
+static DEVICE_ATTR(als, 0444, show_als, NULL);
+static DEVICE_ATTR(ps, 0444, show_ps, NULL);
+
+static struct attribute *dm_ap3216c_attrs[] = {
+	&dev_attr_ir.attr,
+	&dev_attr_als.attr,
+	&dev_attr_ps.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(dm_ap3216c);
 
 static int dm_ap3216c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
@@ -181,25 +178,32 @@ static int dm_ap3216c_probe(struct i2c_client *client,
 	mutex_init(&ap->lock);
 	i2c_set_clientdata(client, ap);
 
+	/* 1. Software reset sensor and wait for internal PLL logic stability */
 	ret = dm_ap3216c_write_reg(client, AP3216C_SYS_CFG, 0x04);
 	if (ret < 0)
 		return ret;
 	msleep(20);
 
+	/* 2. Enable IR, ALS, and PS measurement mode */
 	ret = dm_ap3216c_write_reg(client, AP3216C_SYS_CFG, 0x03);
 	if (ret < 0)
 		return ret;
 	msleep(150);
 
+	/* 3. Register as a miscdevice (automatic /dev/dm_ap3216c node creation) */
+	ap->misc_dev.minor = MISC_DYNAMIC_MINOR;
+	ap->misc_dev.name = DM_AP3216C_NAME;
+	ap->misc_dev.fops = &dm_ap3216c_fops;
+	ap->misc_dev.groups = dm_ap3216c_groups;
+	ap->misc_dev.parent = &client->dev;
+
+	ret = misc_register(&ap->misc_dev);
+	if (ret)
+		return ret;
+
 	g_ap3216c = ap;
 
-	ret = dm_ap3216c_chrdev_init(ap);
-	if (ret) {
-		g_ap3216c = NULL;
-		return ret;
-	}
-
-	dev_info(&client->dev, "created /dev/%s at addr 0x%02x\n",
+	dev_info(&client->dev, "created /dev/%s via miscdevice at addr 0x%02x\n",
 		 DM_AP3216C_NAME, client->addr);
 	return 0;
 }
@@ -208,7 +212,7 @@ static int dm_ap3216c_remove(struct i2c_client *client)
 {
 	struct dm_ap3216c_dev *ap = i2c_get_clientdata(client);
 
-	dm_ap3216c_chrdev_exit(ap);
+	misc_deregister(&ap->misc_dev);
 	g_ap3216c = NULL;
 	return 0;
 }
@@ -233,7 +237,7 @@ static struct i2c_driver dm_ap3216c_driver = {
 	.id_table = dm_ap3216c_id,
 	.driver = {
 		.name = DM_AP3216C_NAME,
-		.of_match_table = dm_ap3216c_of_match,
+		.of_match_table = of_match_ptr(dm_ap3216c_of_match),
 	},
 };
 
@@ -241,4 +245,4 @@ module_i2c_driver(dm_ap3216c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("DataMonitor");
-MODULE_DESCRIPTION("Data Monitor AP3216C I2C character device driver");
+MODULE_DESCRIPTION("Data Monitor AP3216C I2C Driver (MiscDevice + Sysfs + SMBus)");

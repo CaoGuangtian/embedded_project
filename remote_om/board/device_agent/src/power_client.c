@@ -5,7 +5,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define POWER_MANAGER_BIN "/opt/project2/bin/power_manager"
+#define POWER_MANAGER_BIN "/opt/remote_om/bin/power_manager"
 #define POWER_MANAGER_CONF "/etc/power_manager/power_manager.conf"
 
 static int mode_allowed(const char *mode)

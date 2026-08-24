@@ -1,6 +1,6 @@
 #!/bin/sh
 
-APP="/opt/project2/bin/power_manager"
+APP="/opt/remote_om/bin/power_manager"
 CONF="/etc/power_manager/power_manager.conf"
 
 start() {

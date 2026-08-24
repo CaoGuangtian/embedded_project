@@ -333,9 +333,9 @@ Example `ota_upgrade`:
 }
 ```
 
-Current OTA stage downloads to a fixed `/tmp/project2_ota_<target>.tar.gz`
+Current OTA stage downloads to a fixed `/tmp/om_ota_<target>.tar.gz`
 path, checks SHA256, rejects unsafe archive paths, extracts the package to
-`/tmp/project2_ota_<target>/`, and validates package contents. It does not
+`/tmp/om_ota_<target>/`, and validates package contents. It does not
 replace binaries, restart services, run health checks, or roll back.
 
 Expected package layout after extraction:
@@ -389,9 +389,9 @@ Example `ota_install`:
 Current install paths:
 
 ```text
-power_manager  -> /opt/project2/bin/power_manager
-collector_demo -> /opt/project2/bin/collector_demo
-app_service    -> /opt/project2/bin/app_service
+power_manager  -> /opt/remote_om/bin/power_manager
+collector_demo -> /opt/remote_om/bin/collector_demo
+app_service    -> /opt/remote_om/bin/app_service
 ```
 
 `device_agent` self-upgrade is not supported in this stage. Install flow:
@@ -399,7 +399,7 @@ app_service    -> /opt/project2/bin/app_service
 ```text
 check prepared package
 backup old binary to <target>.bak
-copy prepared binary into /opt/project2/bin/
+copy prepared binary into /opt/remote_om/bin/
 chmod +x
 restart service
 check service status

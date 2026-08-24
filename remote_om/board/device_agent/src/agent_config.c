@@ -43,7 +43,7 @@ static int parse_int(const char *text, int *out)
 
 static int ensure_parent_dir(const char *path)
 {
-	char tmp[P2_CONFIG_PATH_MAX];
+	char tmp[OM_CONFIG_PATH_MAX];
 	char *slash;
 
 	snprintf(tmp, sizeof(tmp), "%s", path);
@@ -61,22 +61,22 @@ static int ensure_parent_dir(const char *path)
 void agent_config_defaults(struct agent_config *cfg)
 {
 	snprintf(cfg->device_id, sizeof(cfg->device_id), "%s",
-		 P2_DEFAULT_DEVICE_ID);
+		 OM_DEFAULT_DEVICE_ID);
 	snprintf(cfg->server_ip, sizeof(cfg->server_ip), "%s",
-		 P2_DEFAULT_SERVER_IP);
-	cfg->server_port = P2_DEFAULT_SERVER_PORT;
-	cfg->heartbeat_interval = P2_DEFAULT_HEARTBEAT_INTERVAL;
-	cfg->status_interval = P2_DEFAULT_STATUS_INTERVAL;
-	cfg->reconnect_interval = P2_DEFAULT_RECONNECT_INTERVAL;
-	cfg->max_log_kb = P2_DEFAULT_MAX_LOG_KB;
+		 OM_DEFAULT_SERVER_IP);
+	cfg->server_port = OM_DEFAULT_SERVER_PORT;
+	cfg->heartbeat_interval = OM_DEFAULT_HEARTBEAT_INTERVAL;
+	cfg->status_interval = OM_DEFAULT_STATUS_INTERVAL;
+	cfg->reconnect_interval = OM_DEFAULT_RECONNECT_INTERVAL;
+	cfg->max_log_kb = OM_DEFAULT_MAX_LOG_KB;
 	snprintf(cfg->net_ifname, sizeof(cfg->net_ifname), "%s",
-		 P2_DEFAULT_NET_IFNAME);
+		 OM_DEFAULT_NET_IFNAME);
 	snprintf(cfg->log_path, sizeof(cfg->log_path), "%s",
-		 P2_DEFAULT_LOG_PATH);
+		 OM_DEFAULT_LOG_PATH);
 	snprintf(cfg->fw_version, sizeof(cfg->fw_version), "%s",
-		 P2_DEFAULT_FW_VERSION);
+		 OM_DEFAULT_FW_VERSION);
 	snprintf(cfg->config_path, sizeof(cfg->config_path), "%s",
-		 P2_DEFAULT_CONFIG_PATH);
+		 OM_DEFAULT_CONFIG_PATH);
 }
 
 static void config_set_value(struct agent_config *cfg, const char *key,
@@ -151,7 +151,7 @@ int agent_config_save(const struct agent_config *cfg)
 	if (!fp)
 		return -1;
 
-	fprintf(fp, "# Project2 device_agent config\n\n");
+	fprintf(fp, "# Remote OM device_agent config\n\n");
 	fprintf(fp, "device_id=%s\n", cfg->device_id);
 	fprintf(fp, "server_ip=%s\n", cfg->server_ip);
 	fprintf(fp, "server_port=%d\n", cfg->server_port);

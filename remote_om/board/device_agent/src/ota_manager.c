@@ -16,9 +16,9 @@ struct install_target {
 };
 
 static const struct install_target g_install_targets[] = {
-	{ "power_manager", "/opt/project2/bin/power_manager" },
-	{ "collector_demo", "/opt/project2/bin/collector_demo" },
-	{ "app_service", "/opt/project2/bin/app_service" },
+	{ "power_manager", "/opt/remote_om/bin/power_manager" },
+	{ "collector_demo", "/opt/remote_om/bin/collector_demo" },
+	{ "app_service", "/opt/remote_om/bin/app_service" },
 };
 
 static int target_allowed(const char *target)
@@ -425,8 +425,8 @@ int ota_manager_prepare_package(const char *target, const char *version,
 		return -1;
 	}
 
-	snprintf(path, sizeof(path), "/tmp/project2_ota_%s.tar.gz", target);
-	snprintf(extract_dir, sizeof(extract_dir), "/tmp/project2_ota_%s",
+	snprintf(path, sizeof(path), "/tmp/om_ota_%s.tar.gz", target);
+	snprintf(extract_dir, sizeof(extract_dir), "/tmp/om_ota_%s",
 		 target);
 
 	unlink(path);
@@ -593,7 +593,7 @@ int ota_manager_install_prepared(const char *target, char *msg,
 	}
 
 	snprintf(prepared_bin, sizeof(prepared_bin),
-		 "/tmp/project2_ota_%s/bin/%s", target, target);
+		 "/tmp/om_ota_%s/bin/%s", target, target);
 	if (!regular_file_exists(prepared_bin)) {
 		snprintf(msg, msg_len, "missing target binary");
 		return -1;

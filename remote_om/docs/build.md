@@ -74,14 +74,14 @@ quit
 Package board release:
 
 ```bash
-cd project2_remote_om
+cd remote_om
 ./board/scripts/package_release.sh
 ```
 
 The package is staged at:
 
 ```text
-release/project2/
+release/remote_om/
 ├── bin/
 │   ├── device_agent
 │   └── power_manager

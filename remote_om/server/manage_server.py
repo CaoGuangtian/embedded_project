@@ -304,7 +304,7 @@ def interactive_loop(session):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Project2 PC management server")
+    parser = argparse.ArgumentParser(description="Remote OM PC management server")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", default=9000, type=int)
     args = parser.parse_args()

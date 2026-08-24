@@ -1,6 +1,6 @@
 #!/bin/sh
 
-APP="/opt/project2/bin/device_agent"
+APP="/opt/remote_om/bin/device_agent"
 CONF="/etc/device_agent/device_agent.conf"
 PIDFILE="/var/run/device_agent.pid"
 
@@ -63,4 +63,3 @@ case "$1" in
 		exit 1
 		;;
 esac
-

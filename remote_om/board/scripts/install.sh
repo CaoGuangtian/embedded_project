@@ -3,7 +3,7 @@
 set -eu
 
 SRC_DIR="${1:-.}"
-APP_DIR="${APP_DIR:-/opt/project2}"
+APP_DIR="${APP_DIR:-/opt/remote_om}"
 CONFIG_DIR="${CONFIG_DIR:-/etc/device_agent}"
 POWER_CONFIG_DIR="${POWER_CONFIG_DIR:-/etc/power_manager}"
 LOG_DIR="${LOG_DIR:-/var/log/device_agent}"
@@ -11,7 +11,7 @@ POWER_LOG_DIR="${POWER_LOG_DIR:-/var/log/power_manager}"
 
 if [ ! -d "$SRC_DIR/bin" ] || [ ! -d "$SRC_DIR/config" ]; then
 	echo "usage: $0 <release-dir>" >&2
-	echo "example: $0 /tmp/project2" >&2
+	echo "example: $0 /tmp/remote_om" >&2
 	exit 1
 fi
 
@@ -61,7 +61,7 @@ if command -v systemctl >/dev/null 2>&1; then
 	systemctl daemon-reload
 fi
 
-echo "installed Project2 device_agent"
+echo "installed Remote OM device_agent"
 echo "app:    $APP_DIR"
 echo "config: $CONFIG_DIR/device_agent.conf"
 echo "power:  $POWER_CONFIG_DIR/power_manager.conf"

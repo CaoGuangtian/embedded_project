@@ -45,7 +45,7 @@ static int send_message_only(int fd, const char *tag, const char *line)
 
 static int send_message_wait_ack(int fd, const char *tag, const char *line)
 {
-	char reply[P2_LINE_MAX];
+	char reply[OM_LINE_MAX];
 	char ack_result[32];
 	char ack_msg[128];
 
@@ -73,7 +73,7 @@ static int send_status_report(int fd, const struct agent_config *cfg,
 			      struct protocol_context *proto)
 {
 	struct agent_status st;
-	char line[P2_LINE_MAX];
+	char line[OM_LINE_MAX];
 
 	status_collect(cfg, &st);
 	if (protocol_build_status_report(proto, cfg, &st, line,
@@ -95,7 +95,7 @@ struct log_send_context {
 static void send_log_line_cb(int index, const char *text, void *arg)
 {
 	struct log_send_context *ctx = arg;
-	char line[P2_LINE_MAX];
+	char line[OM_LINE_MAX];
 
 	if (ctx->failed)
 		return;
@@ -137,7 +137,7 @@ static int send_log_tail(int fd, const struct agent_config *cfg,
 static int send_config_report(int fd, const struct agent_config *cfg,
 			      struct protocol_context *proto)
 {
-	char line[P2_LINE_MAX];
+	char line[OM_LINE_MAX];
 
 	if (protocol_build_config_report(proto, cfg, line, sizeof(line))) {
 		agent_log_error("build config_report message failed");
@@ -156,7 +156,7 @@ static int send_config_report(int fd, const struct agent_config *cfg,
 static int send_command_ack(int fd, const struct agent_config *cfg,
 			    const struct command_result *result)
 {
-	char line[P2_LINE_MAX];
+	char line[OM_LINE_MAX];
 
 	if (command_build_ack(cfg, result, line, sizeof(line))) {
 		agent_log_error("build command ack failed");
@@ -252,7 +252,7 @@ static int poll_server_input(int fd, struct agent_config *cfg,
 			if (handle_server_line(fd, cfg, proto, rx_line))
 				return -1;
 			*rx_used = 0;
-		} else if (*rx_used + 1 < P2_LINE_MAX) {
+		} else if (*rx_used + 1 < OM_LINE_MAX) {
 			rx_line[(*rx_used)++] = buf[i];
 		} else {
 			*rx_used = 0;
@@ -265,8 +265,8 @@ static int poll_server_input(int fd, struct agent_config *cfg,
 static int run_connected_session(struct agent_config *cfg,
 				 struct protocol_context *proto, int fd)
 {
-	char line[P2_LINE_MAX];
-	char rx_line[P2_LINE_MAX];
+	char line[OM_LINE_MAX];
+	char rx_line[OM_LINE_MAX];
 	size_t rx_used = 0;
 	long connected_at = monotonic_seconds();
 	long last_heartbeat = 0;

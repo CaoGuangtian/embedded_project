@@ -1,0 +1,12 @@
+[Unit]
+Description=Remote OM Power Manager
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/remote_om/bin/power_manager -c /etc/power_manager/power_manager.conf
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
