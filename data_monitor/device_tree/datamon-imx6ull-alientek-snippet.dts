@@ -6,7 +6,6 @@
  *
  * The GPIO numbers below match common ALIENTEK i.MX6ULL examples:
  *   LED:  GPIO1_IO03, active low
- *   BEEP: GPIO5_IO01, active low
  *   KEY:  GPIO1_IO18, active low
  *
  * If your board schematic differs, change these GPIOs and pinctrl groups.
@@ -14,18 +13,17 @@
 
 / {
 	/*
-	 * The stock ALIENTEK DTS already owns LED and BEEP through gpio-leds.
-	 * Delete it before adding project-specific character-device nodes,
-	 * otherwise gpio_request() will fail with -EBUSY.
+	 * Replace the stock LED node with the standard gpio-leds consumer.
 	 */
 	/delete-node/ leds;
 
-	dm_led {
-		compatible = "dm,led";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpio_leds>;
-		led-gpio = <&gpio1 3 GPIO_ACTIVE_LOW>;
-		status = "okay";
+	leds {
+		compatible = "gpio-leds";
+		datamon_green {
+			label = "datamon:green";
+			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
 	};
 
 	dm_beep {
@@ -36,18 +34,23 @@
 		status = "okay";
 	};
 
-	dm_key {
-		compatible = "dm,key";
+	gpio_keys_datamon {
+		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
-		key-gpio = <&gpio1 18 GPIO_ACTIVE_LOW>;
+		datamon_key {
+			label = "datamon-key";
+			gpios = <&gpio1 18 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_ENTER>;
+			debounce-interval = <20>;
+		};
 		status = "okay";
 	};
 };
 
 /*
  * The stock DTS usually has a gpio_keys label using GPIO1_IO18. Disable it
- * before dm_key requests the same GPIO.
+ * before the project gpio-keys node requests the same GPIO.
  */
 &gpio_keys {
 	status = "disabled";

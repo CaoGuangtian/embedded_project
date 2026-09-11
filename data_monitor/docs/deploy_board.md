@@ -11,11 +11,9 @@ Expected target layout:
 │   ├── dm_ap3216c_read
 │   └── dm_icm20608_read
 ├── modules/
-│   ├── dm_led.ko
 │   ├── dm_beep.ko
-│   ├── dm_key.ko
-│   ├── dm_ap3216c.ko
-│   └── dm_icm20608.ko
+│   ├── dm_ap3216c_iio.ko
+│   └── dm_icm20608_iio.ko
 ├── load_modules.sh
 ├── unload_modules.sh
 ├── config/
@@ -32,7 +30,7 @@ Manual bring-up:
 ```bash
 cd /opt/datamon
 ./load_modules.sh ./modules
-./bin/dm_outctl /dev/dm_led 1
+./bin/dm_outctl /sys/class/leds/datamon:green/brightness 1
 ./bin/dm_outctl /dev/dm_beep 1
 ./bin/dm_keyread
 ./bin/dm_ap3216c_read

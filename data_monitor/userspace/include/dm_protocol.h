@@ -3,11 +3,12 @@
 
 #include <stdint.h>
 
-#define DM_DEV_LED "/dev/dm_led"
+#define DM_DEV_LED "/sys/class/leds/datamon:green/brightness"
 #define DM_DEV_BEEP "/dev/dm_beep"
-#define DM_DEV_KEY "/dev/dm_key"
-#define DM_DEV_AP3216C "/dev/dm_ap3216c"
-#define DM_DEV_ICM20608 "/dev/dm_icm20608"
+#define DM_DEV_KEY_PREFIX "/dev/input/event"
+#define DM_IIO_ROOT "/sys/bus/iio/devices"
+#define DM_IIO_AP3216C "dm-ap3216c"
+#define DM_IIO_ICM20608 "dm-icm20608"
 
 #define DM_DEFAULT_SERVER_IP "192.168.10.100"
 #define DM_DEFAULT_SERVER_PORT 9000

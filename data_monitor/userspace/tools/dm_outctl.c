@@ -6,7 +6,7 @@
 
 static void usage(const char *prog)
 {
-	fprintf(stderr, "usage: %s /dev/dm_led|/dev/dm_beep 0|1\n", prog);
+	fprintf(stderr, "usage: %s /sys/class/leds/datamon:green/brightness|/dev/dm_beep 0|1\n", prog);
 }
 
 int main(int argc, char **argv)

@@ -13,10 +13,8 @@ load_one() {
 	insmod "$MOD_DIR/$name"
 }
 
-load_one dm_led.ko
 load_one dm_beep.ko
-load_one dm_key.ko
-load_one dm_ap3216c.ko
-load_one dm_icm20608.ko
+load_one dm_ap3216c_iio.ko
+load_one dm_icm20608_iio.ko
 
 echo "datamon modules loaded"

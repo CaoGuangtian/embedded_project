@@ -1,30 +1,21 @@
-#include <fcntl.h>
 #include <stdio.h>
-#include <unistd.h>
-
-#include "dm_protocol.h"
+#include "dm_iio.h"
 
 int main(void)
 {
-	struct dm_icm20608_sample sample;
-	int fd;
+	const char *attrs[] = { "in_accel_x_raw", "in_accel_y_raw",
+		"in_accel_z_raw", "in_temp0_raw", "in_anglvel_x_raw",
+		"in_anglvel_y_raw", "in_anglvel_z_raw" };
+	int values[7], i;
 
-	fd = open(DM_DEV_ICM20608, O_RDONLY);
-	if (fd < 0) {
-		perror("open " DM_DEV_ICM20608);
-		return 1;
+	for (i = 0; i < 7; i++) {
+		if (dm_iio_read_attr(DM_IIO_ICM20608, attrs[i], &values[i])) {
+			perror("read ICM20608 IIO attributes");
+			return 1;
+		}
 	}
-
-	if (read(fd, &sample, sizeof(sample)) != sizeof(sample)) {
-		perror("read");
-		close(fd);
-		return 1;
-	}
-
 	printf("icm20608: acc=(%d,%d,%d) temp=%d gyro=(%d,%d,%d)\n",
-	       sample.accel_x, sample.accel_y, sample.accel_z, sample.temp,
-	       sample.gyro_x, sample.gyro_y, sample.gyro_z);
-
-	close(fd);
+	       values[0], values[1], values[2], values[3], values[4],
+	       values[5], values[6]);
 	return 0;
 }

@@ -5,8 +5,8 @@ Run these commands in Linux or WSL2, not directly in Windows PowerShell.
 ## Kernel modules
 
 Before building modules, merge `device_tree/datamon-imx6ull-alientek-snippet.dts`
-into your board DTS and rebuild the DTB. The snippet disables stock nodes that
-would otherwise own the same LED, BEEP, KEY, AP3216C, and ICM20608 resources.
+into your board DTS and rebuild the DTB. The snippet uses standard `gpio-leds`
+and `gpio-keys` nodes and custom IIO nodes for the two sensors.
 
 ```bash
 cd data_monitor/kernel_modules
@@ -19,11 +19,9 @@ Copy the generated `.ko` files to the board, then load them after booting with
 the matching DTB:
 
 ```bash
-insmod dm_led.ko
 insmod dm_beep.ko
-insmod dm_key.ko
-insmod dm_ap3216c.ko
-insmod dm_icm20608.ko
+insmod dm_ap3216c_iio.ko
+insmod dm_icm20608_iio.ko
 ```
 
 ## Userspace tools
@@ -36,7 +34,7 @@ make CC=arm-linux-gnueabihf-gcc
 Example checks on the board:
 
 ```bash
-./tools/dm_outctl /dev/dm_led 1
+./tools/dm_outctl /sys/class/leds/datamon:green/brightness 1
 ./tools/dm_outctl /dev/dm_beep 1
 ./tools/dm_keyread
 ./tools/dm_ap3216c_read

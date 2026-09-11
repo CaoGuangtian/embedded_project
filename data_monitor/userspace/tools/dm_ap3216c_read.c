@@ -1,29 +1,16 @@
-#include <fcntl.h>
 #include <stdio.h>
-#include <unistd.h>
-
-#include "dm_protocol.h"
+#include "dm_iio.h"
 
 int main(void)
 {
-	struct dm_ap3216c_sample sample;
-	int fd;
+	int ir, als, ps;
 
-	fd = open(DM_DEV_AP3216C, O_RDONLY);
-	if (fd < 0) {
-		perror("open " DM_DEV_AP3216C);
+	if (dm_iio_read_attr(DM_IIO_AP3216C, "in_intensity0_raw", &ir) ||
+	    dm_iio_read_attr(DM_IIO_AP3216C, "in_illuminance0_raw", &als) ||
+	    dm_iio_read_attr(DM_IIO_AP3216C, "in_proximity0_raw", &ps)) {
+		perror("read AP3216C IIO attributes");
 		return 1;
 	}
-
-	if (read(fd, &sample, sizeof(sample)) != sizeof(sample)) {
-		perror("read");
-		close(fd);
-		return 1;
-	}
-
-	printf("ap3216c: ir=%u als=%u ps=%u\n",
-	       sample.ir, sample.als, sample.ps);
-
-	close(fd);
+	printf("ap3216c: ir=%d als=%d ps=%d\n", ir, als, ps);
 	return 0;
 }

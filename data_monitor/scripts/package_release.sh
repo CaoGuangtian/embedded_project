@@ -27,7 +27,7 @@ for app in dm_collector dm_outctl dm_keyread dm_ap3216c_read dm_icm20608_read; d
 	fi
 done
 
-for mod in dm_led.ko dm_beep.ko dm_key.ko dm_ap3216c.ko dm_icm20608.ko; do
+for mod in dm_beep.ko dm_ap3216c_iio.ko dm_icm20608_iio.ko; do
 	copy_if_exists "$ROOT_DIR/kernel_modules/$mod" "$OUT_DIR/modules/"
 done
 

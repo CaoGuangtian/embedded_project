@@ -15,8 +15,11 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <linux/input.h>
+#include <sys/ioctl.h>
 
 #include "dm_protocol.h"
+#include "dm_iio.h"
 
 #define DM_RX_BUF_SIZE 1024
 #define DM_LINE_SIZE 2048
@@ -332,27 +335,42 @@ static int save_config_file(const struct dm_config *cfg)
 	return 0;
 }
 
-static int read_full_device(const char *path, void *buf, size_t len)
-{
-	int fd = open(path, O_RDONLY);
-	ssize_t n;
-
-	if (fd < 0)
-		return -1;
-
-	n = read(fd, buf, len);
-	close(fd);
-	return n == (ssize_t)len ? 0 : -1;
-}
-
 static int read_ap3216c(struct dm_ap3216c_sample *sample)
 {
-	return read_full_device(DM_DEV_AP3216C, sample, sizeof(*sample));
+	int value;
+	if (dm_iio_read_attr(DM_IIO_AP3216C, "in_intensity0_raw", &value))
+		return -1;
+	sample->ir = (uint16_t)value;
+	if (dm_iio_read_attr(DM_IIO_AP3216C, "in_illuminance0_raw", &value))
+		return -1;
+	sample->als = (uint16_t)value;
+	if (dm_iio_read_attr(DM_IIO_AP3216C, "in_proximity0_raw", &value))
+		return -1;
+	sample->ps = (uint16_t)value;
+	return 0;
 }
 
 static int read_icm20608(struct dm_icm20608_sample *sample)
 {
-	return read_full_device(DM_DEV_ICM20608, sample, sizeof(*sample));
+	const char *attrs[] = { "in_accel_x_raw", "in_accel_y_raw",
+				"in_accel_z_raw", "in_temp0_raw",
+				"in_anglvel_x_raw", "in_anglvel_y_raw",
+				"in_anglvel_z_raw" };
+	int value, values[7], i;
+
+	for (i = 0; i < 7; i++) {
+		if (dm_iio_read_attr(DM_IIO_ICM20608, attrs[i], &value))
+			return -1;
+		values[i] = value;
+	}
+	sample->accel_x = (int16_t)values[0];
+	sample->accel_y = (int16_t)values[1];
+	sample->accel_z = (int16_t)values[2];
+	sample->temp = (int16_t)values[3];
+	sample->gyro_x = (int16_t)values[4];
+	sample->gyro_y = (int16_t)values[5];
+	sample->gyro_z = (int16_t)values[6];
+	return 0;
 }
 
 static int write_output(const char *dev, int on)
@@ -1071,19 +1089,32 @@ static void *network_thread(void *arg)
 
 static void *key_thread(void *arg)
 {
-	int fd;
+	int fd = -1;
+	int i;
+	char path[64];
+	char name[128];
 
 	(void)arg;
 
-	fd = open(DM_DEV_KEY, O_RDONLY);
+	for (i = 0; i < 32; i++) {
+		snprintf(path, sizeof(path), "%s%d", DM_DEV_KEY_PREFIX, i);
+		fd = open(path, O_RDONLY);
+		if (fd < 0)
+			continue;
+		if (ioctl(fd, EVIOCGNAME(sizeof(name)), name) >= 0 &&
+		    strstr(name, "datamon-key"))
+			break;
+		close(fd);
+		fd = -1;
+	}
 	if (fd < 0) {
-		log_msg("key disabled: open %s failed: %s", DM_DEV_KEY,
+		log_msg("key disabled: datamon input device not found: %s",
 			strerror(errno));
 		return NULL;
 	}
 
 	while (1) {
-		unsigned char event;
+		struct input_event event;
 		ssize_t n;
 		int stop;
 
@@ -1092,7 +1123,7 @@ static void *key_thread(void *arg)
 			break;
 
 		n = read(fd, &event, sizeof(event));
-		if (n == sizeof(event) && event == 1)
+		if (n == sizeof(event) && event.type == EV_KEY && event.value == 1)
 			cycle_mode();
 		else if (n < 0 && errno != EINTR)
 			sleep_ms(100);

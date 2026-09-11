@@ -15,17 +15,16 @@ The first bring-up target is:
 
 1. Apply the DTS snippet to the board DTS.
 2. Build and load the kernel modules.
-3. Verify `/dev/dm_led`, `/dev/dm_beep`, `/dev/dm_key`,
-   `/dev/dm_ap3216c`, and `/dev/dm_icm20608`.
+3. Verify the standard LED, input, IIO, and `/dev/dm_beep` interfaces.
 4. Run the userspace tools one by one.
 
 ## Current Feature Set
 
-- GPIO LED driver exposed as `/dev/dm_led`
+- GPIO LED exposed through the kernel `gpio-leds` and LED class
 - GPIO beep driver exposed as `/dev/dm_beep`
-- GPIO interrupt key driver exposed as `/dev/dm_key`
-- AP3216C I2C driver exposed as `/dev/dm_ap3216c`
-- ICM20608 SPI driver exposed as `/dev/dm_icm20608`
+- GPIO key exposed through the kernel `gpio-keys` and input subsystem
+- AP3216C I2C driver exposed through IIO
+- ICM20608 SPI driver exposed through IIO
 - Board collector with periodic sampling, alarm policy, local CSV logging,
   key-based mode switching, TCP status upload, and remote commands
 - Engineering-unit conversion, simple exponential filtering, runtime config

@@ -2,11 +2,9 @@ KERNEL_DIR ?= ../../linux-imx-4.1.15-2.1.0-e48931b1-v2.8
 ARCH ?= arm
 CROSS_COMPILE ?= arm-linux-gnueabihf-
 
-obj-m += dm_led.o
 obj-m += dm_beep.o
-obj-m += dm_key.o
-obj-m += dm_ap3216c.o
-obj-m += dm_icm20608.o
+obj-m += dm_ap3216c_iio.o
+obj-m += dm_icm20608_iio.o
 
 .PHONY: all clean
 
