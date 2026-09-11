@@ -17,6 +17,10 @@
 build/
 build-*/
 release/
+resume/
+resume_hexagon/
+.preview/
+.pylibs/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
